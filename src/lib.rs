@@ -107,6 +107,17 @@ impl Context {
             _ => Err(io::Error::new(ErrorKind::Other, "unknown set latency error")),
         }
     }
+
+    pub fn get_latency_timer(&mut self) -> io::Result<u8> {
+        let mut value = 0u8;
+        let result = unsafe { ffi::ftdi_get_latency_timer(&mut self.native, &mut value) };
+        match result {
+            0 => Ok(value),
+            -1 => Err(io::Error::new(ErrorKind::Other, "set latency failed")),
+            -2 => Err(io::Error::new(ErrorKind::NotFound, "device not found")),
+            _ => Err(io::Error::new(ErrorKind::Other, "unknown get latency error")),
+        }
+    }
 }
 
 impl Drop for Context {
