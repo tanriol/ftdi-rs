@@ -118,6 +118,48 @@ impl Context {
             _ => Err(io::Error::new(ErrorKind::Other, "unknown get latency error")),
         }
     }
+
+    pub fn set_write_chunksize(&mut self, value: u32) {
+        let result = unsafe {
+            ffi::ftdi_write_data_set_chunksize(&mut self.native, value)
+        };
+        match result {
+            0 => (),
+            err => panic!("unknown set_write_chunksize retval {:?}", err)
+        }
+    }
+
+    pub fn write_chunksize(&mut self) -> u32 {
+        let mut value = 0;
+        let result = unsafe {
+            ffi::ftdi_write_data_get_chunksize(&mut self.native, &mut value)
+        };
+        match result {
+            0 => value,
+            err => panic!("unknown get_write_chunksize retval {:?}", err)
+        }
+    }
+
+    pub fn set_read_chunksize(&mut self, value: u32) {
+        let result = unsafe {
+            ffi::ftdi_read_data_set_chunksize(&mut self.native, value)
+        };
+        match result {
+            0 => (),
+            err => panic!("unknown set_write_chunksize retval {:?}", err)
+        }
+    }
+
+    pub fn read_chunksize(&mut self) -> u32 {
+        let mut value = 0;
+        let result = unsafe {
+            ffi::ftdi_read_data_get_chunksize(&mut self.native, &mut value)
+        };
+        match result {
+            0 => value,
+            err => panic!("unknown get_write_chunksize retval {:?}", err)
+        }
+    }
 }
 
 impl Drop for Context {
