@@ -108,7 +108,7 @@ impl Context {
         }
     }
 
-    pub fn get_latency_timer(&mut self) -> io::Result<u8> {
+    pub fn latency_timer(&mut self) -> io::Result<u8> {
         let mut value = 0u8;
         let result = unsafe { ffi::ftdi_get_latency_timer(&mut self.native, &mut value) };
         match result {
