@@ -34,6 +34,35 @@ impl Into<ffi::ftdi_interface> for Interface {
 }
 
 
+pub enum MpsseMode {
+    Reset,
+    Bitbang,
+    Mpsse,
+    SyncBb,
+    Mcu,
+    Opto,
+    Cbus,
+    SyncFf,
+    Ft1284,
+}
+
+impl Into<ffi::ftdi_mpsse_mode> for MpsseMode {
+    fn into(self) -> ffi::ftdi_mpsse_mode {
+        match self {
+            MpsseMode::Reset => ffi::ftdi_mpsse_mode::BITMODE_RESET,
+            MpsseMode::Bitbang => ffi::ftdi_mpsse_mode::BITMODE_BITBANG,
+            MpsseMode::Mpsse => ffi::ftdi_mpsse_mode::BITMODE_MPSSE,
+            MpsseMode::SyncBb => ffi::ftdi_mpsse_mode::BITMODE_SYNCBB,
+            MpsseMode::Mcu => ffi::ftdi_mpsse_mode::BITMODE_MCU,
+            MpsseMode::Opto => ffi::ftdi_mpsse_mode::BITMODE_OPTO,
+            MpsseMode::Cbus => ffi::ftdi_mpsse_mode::BITMODE_CBUS,
+            MpsseMode::SyncFf => ffi::ftdi_mpsse_mode::BITMODE_SYNCFF,
+            MpsseMode::Ft1284 => ffi::ftdi_mpsse_mode::BITMODE_FT1284,
+        }
+    }
+}
+
+
 pub struct Context {
     native: ffi::ftdi_context,
 }
@@ -158,6 +187,38 @@ impl Context {
         match result {
             0 => value,
             err => panic!("unknown get_write_chunksize retval {:?}", err)
+        }
+    }
+
+    pub fn set_baudrate(&mut self, baudrate: i32) -> io::Result<()> {
+        let result = unsafe { ffi::ftdi_set_baudrate(&mut self.native, baudrate) };
+        match result {
+            0 => Ok(()),
+            -1 => Err(io::Error::new(ErrorKind::InvalidInput, "invalid baudrate")),
+            -2 => Err(io::Error::new(ErrorKind::Other, "setting baudrate failed")),
+            -3 => Err(io::Error::new(ErrorKind::Other, "USB device unavailable")),
+            _ => Err(io::Error::new(ErrorKind::Other, "unknown set baudrate error")),
+        }
+    }
+
+    pub fn set_bitmode(&mut self, bitmask: u8, mode: MpsseMode) -> io::Result<()> {
+        let mode: ffi::ftdi_mpsse_mode = mode.into();
+        let result = unsafe { ffi::ftdi_set_bitmode(&mut self.native, bitmask, mode as u8) };
+        match result {
+            0 => Ok(()),
+            -1 => Err(io::Error::new(ErrorKind::Other, "can't enable bitbang mode")),
+            -2 => Err(io::Error::new(ErrorKind::Other, "USB device unavailable")),
+            _ => Err(io::Error::new(ErrorKind::Other, "unknown set bitmode error")),
+        }
+    }
+
+    pub fn disable_bitbang(&mut self) -> io::Result<()> {
+        let result = unsafe { ffi::ftdi_disable_bitbang(&mut self.native) };
+        match result {
+            0 => Ok(()),
+            -1 => Err(io::Error::new(ErrorKind::Other, "can't disable bitbang mode")),
+            -2 => Err(io::Error::new(ErrorKind::Other, "USB device unavailable")),
+            _ => Err(io::Error::new(ErrorKind::Other, "unknown disable bitbang error")),
         }
     }
 }
