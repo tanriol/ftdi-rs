@@ -7,10 +7,9 @@ extern crate num;
 extern crate libftdi1_sys as ffi;
 
 use std::io;
-use std::io::{Read, Write, ErrorKind};
+use std::io::{ErrorKind, Read, Write};
 
 use num::traits::ToPrimitive;
-
 
 /// The target interface
 pub enum Interface {
@@ -33,14 +32,15 @@ impl Into<ffi::ftdi_interface> for Interface {
     }
 }
 
-
 pub struct Context {
     native: ffi::ftdi_context,
 }
 
 impl Context {
     pub fn new() -> Context {
-        let mut context = Context { native: Default::default() };
+        let mut context = Context {
+            native: Default::default(),
+        };
         let result = unsafe { ffi::ftdi_init(&mut context.native) };
         // Can be non-zero on either OOM or libusb_init failure
         assert!(result == 0);
@@ -55,7 +55,10 @@ impl Context {
             -1 => Err(io::Error::new(ErrorKind::InvalidInput, "unknown interface")),
             -2 => Err(io::Error::new(ErrorKind::NotFound, "device not found")),
             -3 => Err(io::Error::new(ErrorKind::Other, "device already opened")),
-            _ => Err(io::Error::new(ErrorKind::Other, "unknown set latency error")),
+            _ => Err(io::Error::new(
+                ErrorKind::Other,
+                "unknown set latency error",
+            )),
         }
     }
 
@@ -70,8 +73,14 @@ impl Context {
             -7 => Err(io::Error::new(ErrorKind::Other, "set baudrate failed")),
             -8 => Err(io::Error::new(ErrorKind::Other, "get description failed")),
             -9 => Err(io::Error::new(ErrorKind::Other, "get serial failed")),
-            -12 => Err(io::Error::new(ErrorKind::Other, "libusb_get_device_list failed")),
-            -13 => Err(io::Error::new(ErrorKind::Other, "libusb_get_device_descriptor failed")),
+            -12 => Err(io::Error::new(
+                ErrorKind::Other,
+                "libusb_get_device_list failed",
+            )),
+            -13 => Err(io::Error::new(
+                ErrorKind::Other,
+                "libusb_get_device_descriptor failed",
+            )),
             _ => Err(io::Error::new(ErrorKind::Other, "unknown usb_open error")),
         }
     }
@@ -104,7 +113,10 @@ impl Context {
             -1 => Err(io::Error::new(ErrorKind::InvalidInput, "bad latency value")),
             -2 => Err(io::Error::new(ErrorKind::Other, "set latency failed")),
             -3 => Err(io::Error::new(ErrorKind::NotFound, "device not found")),
-            _ => Err(io::Error::new(ErrorKind::Other, "unknown set latency error")),
+            _ => Err(io::Error::new(
+                ErrorKind::Other,
+                "unknown set latency error",
+            )),
         }
     }
 
@@ -115,49 +127,44 @@ impl Context {
             0 => Ok(value),
             -1 => Err(io::Error::new(ErrorKind::Other, "set latency failed")),
             -2 => Err(io::Error::new(ErrorKind::NotFound, "device not found")),
-            _ => Err(io::Error::new(ErrorKind::Other, "unknown get latency error")),
+            _ => Err(io::Error::new(
+                ErrorKind::Other,
+                "unknown get latency error",
+            )),
         }
     }
 
     pub fn set_write_chunksize(&mut self, value: u32) {
-        let result = unsafe {
-            ffi::ftdi_write_data_set_chunksize(&mut self.native, value)
-        };
+        let result = unsafe { ffi::ftdi_write_data_set_chunksize(&mut self.native, value) };
         match result {
             0 => (),
-            err => panic!("unknown set_write_chunksize retval {:?}", err)
+            err => panic!("unknown set_write_chunksize retval {:?}", err),
         }
     }
 
     pub fn write_chunksize(&mut self) -> u32 {
         let mut value = 0;
-        let result = unsafe {
-            ffi::ftdi_write_data_get_chunksize(&mut self.native, &mut value)
-        };
+        let result = unsafe { ffi::ftdi_write_data_get_chunksize(&mut self.native, &mut value) };
         match result {
             0 => value,
-            err => panic!("unknown get_write_chunksize retval {:?}", err)
+            err => panic!("unknown get_write_chunksize retval {:?}", err),
         }
     }
 
     pub fn set_read_chunksize(&mut self, value: u32) {
-        let result = unsafe {
-            ffi::ftdi_read_data_set_chunksize(&mut self.native, value)
-        };
+        let result = unsafe { ffi::ftdi_read_data_set_chunksize(&mut self.native, value) };
         match result {
             0 => (),
-            err => panic!("unknown set_write_chunksize retval {:?}", err)
+            err => panic!("unknown set_write_chunksize retval {:?}", err),
         }
     }
 
     pub fn read_chunksize(&mut self) -> u32 {
         let mut value = 0;
-        let result = unsafe {
-            ffi::ftdi_read_data_get_chunksize(&mut self.native, &mut value)
-        };
+        let result = unsafe { ffi::ftdi_read_data_get_chunksize(&mut self.native, &mut value) };
         match result {
             0 => value,
-            err => panic!("unknown get_write_chunksize retval {:?}", err)
+            err => panic!("unknown get_write_chunksize retval {:?}", err),
         }
     }
 }
@@ -174,11 +181,14 @@ impl Read for Context {
         let result = unsafe { ffi::ftdi_read_data(&mut self.native, buf.as_mut_ptr(), len) };
         match result {
             count if count >= 0 => Ok(count as usize),
-            -666 => Err(io::Error::new(ErrorKind::NotFound, "device not found in read")),
-            libusb_error => {
-                Err(io::Error::new(ErrorKind::Other,
-                                   format!("libusb_bulk_transfer error {}", libusb_error)))
-            }
+            -666 => Err(io::Error::new(
+                ErrorKind::NotFound,
+                "device not found in read",
+            )),
+            libusb_error => Err(io::Error::new(
+                ErrorKind::Other,
+                format!("libusb_bulk_transfer error {}", libusb_error),
+            )),
         }
     }
 }
@@ -189,11 +199,14 @@ impl Write for Context {
         let result = unsafe { ffi::ftdi_write_data(&mut self.native, buf.as_ptr(), len) };
         match result {
             count if count >= 0 => Ok(count as usize),
-            -666 => Err(io::Error::new(ErrorKind::NotFound, "device not found in write")),
-            libusb_error => {
-                Err(io::Error::new(ErrorKind::Other,
-                                   format!("usb_bulk_write error {}", libusb_error)))
-            }
+            -666 => Err(io::Error::new(
+                ErrorKind::NotFound,
+                "device not found in write",
+            )),
+            libusb_error => Err(io::Error::new(
+                ErrorKind::Other,
+                format!("usb_bulk_write error {}", libusb_error),
+            )),
         }
     }
 
@@ -201,7 +214,6 @@ impl Write for Context {
         Ok(())
     }
 }
-
 
 #[cfg(test)]
 mod test {

@@ -6,7 +6,6 @@ extern crate ftdi;
 
 use std::io::{Read, Write};
 
-
 fn main() {
     println!("Starting tester...");
     let mut context = ftdi::Context::new();
@@ -50,9 +49,11 @@ fn main() {
             context.read_to_end(&mut reply).unwrap();
             let complement = 255 - num;
             if reply != vec![complement] {
-                println!("Wrong complement reply {:?} (expected {:?}",
-                         reply,
-                         vec![complement]);
+                println!(
+                    "Wrong complement reply {:?} (expected {:?}",
+                    reply,
+                    vec![complement]
+                );
             }
         }
         println!("Testing finished");
