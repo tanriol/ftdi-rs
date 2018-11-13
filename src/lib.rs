@@ -32,6 +32,25 @@ impl Into<ffi::ftdi_interface> for Interface {
     }
 }
 
+#[allow(non_camel_case_types)]
+pub enum FlowControl {
+    SIO_DISABLE_FLOW_CTRL,
+    SIO_RTS_CTS_HS,
+    SIO_DTR_DSR_HS,
+    SIO_XON_XOFF_HS,
+}
+
+impl Into<i32> for FlowControl {
+    fn into(self) -> i32 {
+        match self {
+            FlowControl::SIO_DISABLE_FLOW_CTRL => 0x0,
+            FlowControl::SIO_RTS_CTS_HS => (0x1 << 8),
+            FlowControl::SIO_DTR_DSR_HS => (0x2 << 8),
+            FlowControl::SIO_XON_XOFF_HS => (0x4 << 8),
+        }
+    }
+}
+
 pub struct Context {
     native: ffi::ftdi_context,
 }
@@ -165,6 +184,19 @@ impl Context {
         match result {
             0 => value,
             err => panic!("unknown get_write_chunksize retval {:?}", err),
+        }
+    }
+
+    pub fn set_flow_control(&mut self, flowctrl: FlowControl) -> io::Result<()> {
+        let result = unsafe { ffi::ftdi_setflowctrl(&mut self.native, flowctrl.into()) };
+        match result {
+            0 => Ok(()),
+            -1 => Err(io::Error::new(ErrorKind::Other, "set flow control failed")),
+            -2 => Err(io::Error::new(ErrorKind::NotFound, "device not found")),
+            _ => Err(io::Error::new(
+                ErrorKind::Other,
+                "unknown set flow control error",
+            )),
         }
     }
 }
