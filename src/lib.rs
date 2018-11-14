@@ -32,6 +32,36 @@ impl Into<ffi::ftdi_interface> for Interface {
     }
 }
 
+pub enum BitMode {
+    RESET,
+    BITBANG,
+    MPSSE,
+    SYNCBB,
+    MCU,
+    OPTO,
+    CBUS,
+    SYNCFF,
+    FT1284,
+}
+
+impl Into<u8> for BitMode {
+    fn into(self) -> u8 {
+        let mode = match self {
+            BitMode::RESET => ffi::ftdi_mpsse_mode::BITMODE_RESET,
+            BitMode::BITBANG => ffi::ftdi_mpsse_mode::BITMODE_BITBANG,
+            BitMode::MPSSE => ffi::ftdi_mpsse_mode::BITMODE_MPSSE,
+            BitMode::SYNCBB => ffi::ftdi_mpsse_mode::BITMODE_SYNCBB,
+            BitMode::MCU => ffi::ftdi_mpsse_mode::BITMODE_MCU,
+            BitMode::OPTO => ffi::ftdi_mpsse_mode::BITMODE_OPTO,
+            BitMode::CBUS => ffi::ftdi_mpsse_mode::BITMODE_CBUS,
+            BitMode::SYNCFF => ffi::ftdi_mpsse_mode::BITMODE_SYNCFF,
+            BitMode::FT1284 => ffi::ftdi_mpsse_mode::BITMODE_FT1284,
+        };
+
+        mode as u8
+    }
+}
+
 #[allow(non_camel_case_types)]
 pub enum FlowControl {
     SIO_DISABLE_FLOW_CTRL,
@@ -196,6 +226,19 @@ impl Context {
             _ => Err(io::Error::new(
                 ErrorKind::Other,
                 "unknown set flow control error",
+            )),
+        }
+    }
+
+    pub fn set_bitmode(&mut self, bitmask: u8, mode: BitMode) -> io::Result<()> {
+        let result = unsafe { ffi::ftdi_set_bitmode(&mut self.native, bitmask, mode.into()) };
+        match result {
+            0 => Ok(()),
+            -1 => Err(io::Error::new(ErrorKind::Other, "set bitmode failed")),
+            -2 => Err(io::Error::new(ErrorKind::NotFound, "device not found")),
+            _ => Err(io::Error::new(
+                ErrorKind::Other,
+                "unknown set bitmode error",
             )),
         }
     }
