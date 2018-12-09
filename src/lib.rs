@@ -155,6 +155,16 @@ impl Context {
         }
     }
 
+    pub fn usb_close(&mut self) -> io::Result<()> {
+        let result = unsafe { ffi::ftdi_usb_close(&mut self.native) };
+        match result {
+            0 => Ok(()),
+            -1 => Err(io::Error::new(ErrorKind::Other, "usb release failed")),
+            -3 => Err(io::Error::new(ErrorKind::NotFound, "unknown ftdi context")),
+            _ => Err(io::Error::new(ErrorKind::Other, "unknown usb_open error")),
+        }
+    }
+
     pub fn set_latency_timer(&mut self, value: u8) -> io::Result<()> {
         let result = unsafe { ffi::ftdi_set_latency_timer(&mut self.native, value) };
         match result {
