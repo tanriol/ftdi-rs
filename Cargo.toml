@@ -9,5 +9,5 @@ homepage = "https://github.com/tanriol/ftdi-rs"
 repository = "https://github.com/tanriol/ftdi-rs"
 
 [dependencies]
-libftdi1-sys = "0.1.0"
+libftdi1-sys = "1.0.0-alpha2"
 num = "0.1.30"
