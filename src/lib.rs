@@ -2,12 +2,9 @@
 //!
 //! Note: the library interface is *definitely* unstable for now
 
-extern crate num;
+use libftdi1_sys as ffi;
 
-extern crate libftdi1_sys as ffi;
-
-use std::io;
-use std::io::{Read, Write, ErrorKind};
+use std::io::{self, Read, Write, ErrorKind};
 
 use num::traits::ToPrimitive;
 
