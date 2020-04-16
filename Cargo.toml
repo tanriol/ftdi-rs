@@ -12,7 +12,7 @@ repository = "https://github.com/tanriol/ftdi-rs"
 
 license = "MIT"
 keywords = ["hardware", "ftdi", "libftdi1"]
-#categories = []
+categories = ["api-bindings", "hardware-support"]
 
 [dependencies]
 libftdi1-sys = "1.0.0-alpha2"
