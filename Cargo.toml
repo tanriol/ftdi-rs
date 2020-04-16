@@ -1,12 +1,18 @@
 [package]
-authors = ["Denis Lisov <dennis.lissov@gmail.com>"]
 name = "ftdi"
 version = "0.0.2"
-keywords = ["hardware","ftdi", "libftdi1"]
+authors = ["Denis Lisov <dennis.lissov@gmail.com>"]
+# edition
+
 description = "A Rust wrapper over libftdi1 library for FTDI devices"
-license = "MIT"
+#documentation = ""
+#readme = ""
 homepage = "https://github.com/tanriol/ftdi-rs"
 repository = "https://github.com/tanriol/ftdi-rs"
+
+license = "MIT"
+keywords = ["hardware", "ftdi", "libftdi1"]
+#categories = []
 
 [dependencies]
 libftdi1-sys = "1.0.0-alpha2"
