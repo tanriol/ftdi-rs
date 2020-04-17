@@ -8,7 +8,7 @@ use std::io::{Read, Write};
 
 fn main() {
     println!("Starting tester...");
-    let mut builder = ftdi::Builder::new();
+    let mut builder = ftdi::Builder::new().unwrap();
     builder.set_interface(ftdi::Interface::A).unwrap();
 
     if let Ok(mut context) = builder.usb_open(0x0403, 0x6010) {

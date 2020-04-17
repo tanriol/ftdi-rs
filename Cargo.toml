@@ -1,6 +1,6 @@
 [package]
 name = "ftdi"
-version = "0.0.2"
+version = "0.1.0"
 authors = ["Denis Lisov <dennis.lissov@gmail.com>"]
 edition = "2018"
 
@@ -17,3 +17,6 @@ categories = ["api-bindings", "hardware-support"]
 [dependencies]
 libftdi1-sys = "1.0.0-alpha2"
 thiserror = "1.0.15"
+
+[features]
+bindgen = ["libftdi1-sys/bindgen"]
