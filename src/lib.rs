@@ -2,14 +2,11 @@
 //!
 //! Note: the library interface is *definitely* unstable for now
 
-extern crate num;
-
 extern crate libftdi1_sys as ffi;
 
 use std::io;
 use std::io::{ErrorKind, Read, Write};
-
-use num::traits::ToPrimitive;
+use std::convert::TryInto;
 
 pub mod error;
 
@@ -177,7 +174,7 @@ impl Drop for Context {
 
 impl Read for Context {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        let len = buf.len().to_i32().unwrap_or(std::i32::MAX);
+        let len = buf.len().try_into().unwrap_or(std::i32::MAX);
         let result = unsafe { ffi::ftdi_read_data(self.native, buf.as_mut_ptr(), len) };
         match result {
             count if count >= 0 => Ok(count as usize),
@@ -195,7 +192,7 @@ impl Read for Context {
 
 impl Write for Context {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        let len = buf.len().to_i32().unwrap_or(std::i32::MAX);
+        let len = buf.len().try_into().unwrap_or(std::i32::MAX);
         let result = unsafe { ffi::ftdi_write_data(self.native, buf.as_ptr(), len) };
         match result {
             count if count >= 0 => Ok(count as usize),
