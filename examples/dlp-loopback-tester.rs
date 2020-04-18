@@ -9,7 +9,7 @@ use std::io::{Read, Write};
 
 fn main() {
     println!("Starting tester...");
-    let mut context = ftdi::Context::new();
+    let mut context = ftdi::Context::new().unwrap();
     context.set_interface(ftdi::Interface::A).unwrap();
 
     if context.usb_open(0x0403, 0x6010).is_ok() {

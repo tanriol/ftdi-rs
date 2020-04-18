@@ -11,6 +11,9 @@ use std::io::{Read, Write, ErrorKind};
 
 use num::traits::ToPrimitive;
 
+pub mod error;
+use error::*;
+
 
 /// The target interface
 pub enum Interface {
@@ -39,12 +42,12 @@ pub struct Context {
 }
 
 impl Context {
-    pub fn new() -> Context {
+    pub fn new() -> Result<Context, ()> {
         let ctx = unsafe { ffi::ftdi_new() };
         // Can be non-zero on either OOM or libusb_init failure
         assert!(!ctx.is_null());
 
-        Context { native: ctx }
+        Ok(Context { native: ctx })
     }
 
     /// Do not call after opening the USB device
