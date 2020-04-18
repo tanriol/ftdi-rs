@@ -5,9 +5,7 @@
 use libftdi1_sys as ffi;
 
 use std::io::{self, Read, Write, ErrorKind};
-
-use num::traits::ToPrimitive;
-
+use std::convert::TryInto;
 
 /// The target interface
 pub enum Interface {
@@ -178,7 +176,7 @@ impl Drop for Device {
 
 impl Read for Device {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        let len = buf.len().to_i32().unwrap_or(std::i32::MAX);
+        let len = buf.len().try_into().unwrap_or(std::i32::MAX);
         let result = unsafe { ffi::ftdi_read_data(self.context, buf.as_mut_ptr(), len) };
         match result {
             count if count >= 0 => Ok(count as usize),
@@ -193,7 +191,7 @@ impl Read for Device {
 
 impl Write for Device {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        let len = buf.len().to_i32().unwrap_or(std::i32::MAX);
+        let len = buf.len().try_into().unwrap_or(std::i32::MAX);
         let result = unsafe { ffi::ftdi_write_data(self.context, buf.as_ptr(), len) };
         match result {
             count if count >= 0 => Ok(count as usize),
