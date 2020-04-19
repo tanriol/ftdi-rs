@@ -4,11 +4,14 @@
 
 extern crate libftdi1_sys as ffi;
 
+use std::convert::TryInto;
 use std::io;
 use std::io::{ErrorKind, Read, Write};
-use std::convert::TryInto;
+use std::result;
+use std::os::raw;
 
 pub mod error;
+use error::Error;
 
 /// The target interface
 pub enum Interface {
@@ -31,32 +34,33 @@ impl Into<ffi::ftdi_interface> for Interface {
     }
 }
 
+pub type Result<T> = result::Result<T, error::Error>;
+
 pub struct Context {
     native: *mut ffi::ftdi_context,
 }
 
 impl Context {
-    pub fn new() -> Result<Context, ()> {
-        let ctx = unsafe { ffi::ftdi_new() };
-        // Can be non-zero on either OOM or libusb_init failure
-        assert!(!ctx.is_null());
+    fn mk_error(&self, res: raw::c_int) -> error::LibFtdiReturn {
+        error::LibFtdiReturn::new(res, &self)
+    }
 
-        Ok(Context { native: ctx })
+    pub fn new() -> Result<Context> {
+        let ctx = unsafe { ffi::ftdi_new() };
+
+        // Can be non-zero on either OOM or libusb_init failure
+        if ctx.is_null() {
+            Err(Error::MallocFailure)
+        } else {
+            Ok(Context { native: ctx })
+        }
     }
 
     /// Do not call after opening the USB device
-    pub fn set_interface(&mut self, interface: Interface) -> io::Result<()> {
+    pub fn set_interface(&mut self, interface: Interface) -> Result<()> {
         let result = unsafe { ffi::ftdi_set_interface(self.native, interface.into()) };
-        match result {
-            0 => Ok(()),
-            -1 => Err(io::Error::new(ErrorKind::InvalidInput, "unknown interface")),
-            -2 => Err(io::Error::new(ErrorKind::NotFound, "device not found")),
-            -3 => Err(io::Error::new(ErrorKind::Other, "device already opened")),
-            _ => Err(io::Error::new(
-                ErrorKind::Other,
-                "unknown set latency error",
-            )),
-        }
+
+        self.mk_error(result).into()
     }
 
     pub fn usb_open(&mut self, vendor: u16, product: u16) -> io::Result<()> {
