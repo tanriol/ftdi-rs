@@ -3,7 +3,7 @@ use std::error;
 use std::ffi::CStr;
 use std::fmt;
 use std::os::raw;
-use std::str::Utf8Error;
+use std::str;
 
 #[derive(Debug)]
 pub enum Error {
@@ -11,7 +11,6 @@ pub enum Error {
     LibUsb(LibUsbError),
     MallocFailure,
     UnexpectedErrorCode(raw::c_int),
-    Utf8(Utf8Error),
 }
 
 #[derive(Debug)]
@@ -46,7 +45,6 @@ impl fmt::Display for Error {
             Error::LibUsb(_) => write!(f, "libusb-internal error"),
             Error::MallocFailure => write!(f, "malloc() failure"),
             Error::UnexpectedErrorCode(c) => write!(f, "unknown libftdi error code {}", c),
-            Error::Utf8(_) => write!(f, "libftdi error string not UTF8"),
         }
     }
 }
@@ -87,12 +85,13 @@ impl<'a> Into<Result<u32, Error>> for LibFtdiReturn<'a> {
             Ok(v) => Ok(v),
             Err(_) => match self.0 {
                 -13..=-1 | -666 => {
-                    let err_raw = unsafe { super::ffi::ftdi_get_error_string(self.1.native) };
+                    let err_str = unsafe {
+                        let err_raw = super::ffi::ftdi_get_error_string(self.1.native);
+                        // Manually checked- every error string in libftdi1 is ASCII.
+                        str::from_utf8_unchecked(CStr::from_ptr(err_raw).to_bytes())
+                    };
 
-                    match unsafe { CStr::from_ptr(err_raw) }.to_str() {
-                        Ok(err_str) => Err(Error::LibFtdi(LibFtdiError { err_str })),
-                        Err(utf8_err) => Err(Error::Utf8(utf8_err)),
-                    }
+                    Err(Error::LibFtdi(LibFtdiError { err_str }))
                 }
                 unk => Err(Error::UnexpectedErrorCode(unk)),
             },
@@ -107,12 +106,13 @@ impl<'a> Into<Result<(), Error>> for LibFtdiReturn<'a> {
             Ok(_) => Ok(()),
             Err(_) => match self.0 {
                 -13..=-1 | -666 => {
-                    let err_raw = unsafe { super::ffi::ftdi_get_error_string(self.1.native) };
+                    let err_str = unsafe {
+                        let err_raw = super::ffi::ftdi_get_error_string(self.1.native);
+                        // Manually checked- every error string in libftdi1 is ASCII.
+                        str::from_utf8_unchecked(CStr::from_ptr(err_raw).to_bytes())
+                    };
 
-                    match unsafe { CStr::from_ptr(err_raw) }.to_str() {
-                        Ok(err_str) => Err(Error::LibFtdi(LibFtdiError { err_str })),
-                        Err(utf8_err) => Err(Error::Utf8(utf8_err)),
-                    }
+                    Err(Error::LibFtdi(LibFtdiError { err_str }))
                 }
                 unk => Err(Error::UnexpectedErrorCode(unk)),
             },
