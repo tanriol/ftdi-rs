@@ -7,11 +7,10 @@ extern crate libftdi1_sys as ffi;
 use std::convert::TryInto;
 use std::io;
 use std::io::{ErrorKind, Read, Write};
-use std::result;
 use std::os::raw;
 
 pub mod error;
-use error::Error;
+use error::{Error, Result};
 
 /// The target interface
 pub enum Interface {
@@ -33,8 +32,6 @@ impl Into<ffi::ftdi_interface> for Interface {
         }
     }
 }
-
-pub type Result<T> = result::Result<T, error::Error>;
 
 pub struct Context {
     native: *mut ffi::ftdi_context,

@@ -4,6 +4,7 @@ use std::ffi::CStr;
 use std::fmt;
 use std::os::raw;
 use std::str;
+use std::result;
 
 #[derive(Debug)]
 pub enum Error {
@@ -70,6 +71,8 @@ impl error::Error for Error {
     }
 }
 
+pub type Result<T> = result::Result<T, Error>;
+
 pub(super) struct LibFtdiReturn<'a>(raw::c_int, &'a super::Context);
 
 impl<'a> LibFtdiReturn<'a> {
@@ -78,8 +81,8 @@ impl<'a> LibFtdiReturn<'a> {
     }
 }
 
-impl<'a> Into<Result<u32, Error>> for LibFtdiReturn<'a> {
-    fn into(self) -> Result<u32, Error> {
+impl<'a> Into<Result<u32>> for LibFtdiReturn<'a> {
+    fn into(self) -> Result<u32> {
         match u32::try_from(self.0) {
             // In libftdi1, return codes >= 0 are success.
             Ok(v) => Ok(v),
@@ -99,8 +102,8 @@ impl<'a> Into<Result<u32, Error>> for LibFtdiReturn<'a> {
     }
 }
 
-impl<'a> Into<Result<(), Error>> for LibFtdiReturn<'a> {
-    fn into(self) -> Result<(), Error> {
+impl<'a> Into<Result<()>> for LibFtdiReturn<'a> {
+    fn into(self) -> Result<()> {
         match u32::try_from(self.0) {
             // In libftdi1, return codes >= 0 are success.
             Ok(_) => Ok(()),
