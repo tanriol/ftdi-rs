@@ -42,18 +42,18 @@ pub struct Context {
 }
 
 impl Context {
-    fn mk_error<T, F>(&self, res: raw::c_int, f: F) -> Result<T>
+    fn mk_error<T, D, F>(&self, res: raw::c_int, default: D, f: F) -> Result<T>
     where
-        u32: Into<T>,
-        F: FnOnce(raw::c_int) -> result::Result<raw::c_int, raw::c_int>,
+        D: FnOnce(raw::c_int) -> result::Result<raw::c_int, raw::c_int>,
+        F: FnOnce(raw::c_int) -> T,
     {
         match u32::try_from(res) {
             // In libftdi1, return codes >= 0 are success. This is the quick path.
-            Ok(r) => Ok(r.into()),
+            Ok(_) => Ok(f(res)),
 
             // Otherwise, use the provided function to determine what error
             // information to return.
-            Err(_) => match f(res) {
+            Err(_) => match default(res) {
                 Ok(_) => {
                     let err_str = unsafe {
                         let err_raw = ffi::ftdi_get_error_string(self.native);
@@ -80,13 +80,17 @@ impl Context {
     }
 
     /// Do not call after opening the USB device
-    pub fn set_interface(&mut self, interface: Interface) -> Result<u32> {
+    pub fn set_interface(&mut self, interface: Interface) -> Result<()> {
         let result = unsafe { ffi::ftdi_set_interface(self.native, interface.into()) };
 
-        self.mk_error(result, |x| match x {
-            x @ -1 | x @ -2 | x @ -3 => Ok(x),
-            y => Err(y),
-        })
+        self.mk_error(
+            result,
+            |e| match e {
+                x @ -1 | x @ -2 | x @ -3 => Ok(x),
+                y => Err(y),
+            },
+            |_| (),
+        )
     }
 
     pub fn usb_open(&mut self, vendor: u16, product: u16) -> io::Result<()> {
