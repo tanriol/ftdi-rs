@@ -4,17 +4,17 @@
 
 extern crate libftdi1_sys as ffi;
 
+use std::convert::TryFrom;
 use std::convert::TryInto;
+use std::ffi::CStr;
 use std::io;
 use std::io::{ErrorKind, Read, Write};
 use std::os::raw;
-use std::ffi::CStr;
-use std::convert::TryFrom;
-use std::str;
 use std::result;
+use std::str;
 
 pub mod error;
-use error::{LibFtdiError, Error, Result};
+use error::{Error, LibFtdiError, Result};
 
 /// The target interface
 pub enum Interface {
@@ -42,9 +42,11 @@ pub struct Context {
 }
 
 impl Context {
-    fn mk_error<T, F>(&self, res: raw::c_int, f: F) -> Result<T> where
+    fn mk_error<T, F>(&self, res: raw::c_int, f: F) -> Result<T>
+    where
         u32: Into<T>,
-        F: FnOnce(raw::c_int) -> result::Result<raw::c_int, raw::c_int> {
+        F: FnOnce(raw::c_int) -> result::Result<raw::c_int, raw::c_int>,
+    {
         match u32::try_from(res) {
             // In libftdi1, return codes >= 0 are success. This is the quick path.
             Ok(r) => Ok(r.into()),
@@ -81,11 +83,9 @@ impl Context {
     pub fn set_interface(&mut self, interface: Interface) -> Result<u32> {
         let result = unsafe { ffi::ftdi_set_interface(self.native, interface.into()) };
 
-        self.mk_error(result, |x| {
-            match x {
-                x @ -1 | x @ -2 | x @ -3 => Ok(x),
-                y => Err(y)
-            }
+        self.mk_error(result, |x| match x {
+            x @ -1 | x @ -2 | x @ -3 => Ok(x),
+            y => Err(y),
         })
     }
 

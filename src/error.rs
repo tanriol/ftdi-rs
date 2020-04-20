@@ -1,8 +1,8 @@
 use std::error;
 use std::fmt;
 use std::os::raw;
-use std::str;
 use std::result;
+use std::str;
 
 #[derive(Debug)]
 pub enum Error {
