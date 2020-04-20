@@ -8,9 +8,13 @@ use std::convert::TryInto;
 use std::io;
 use std::io::{ErrorKind, Read, Write};
 use std::os::raw;
+use std::ffi::CStr;
+use std::convert::TryFrom;
+use std::str;
+use std::result;
 
 pub mod error;
-use error::{Error, Result};
+use error::{LibFtdiError, Error, Result};
 
 /// The target interface
 pub enum Interface {
@@ -38,8 +42,28 @@ pub struct Context {
 }
 
 impl Context {
-    fn mk_error(&self, res: raw::c_int) -> error::LibFtdiReturn {
-        error::LibFtdiReturn::new(res, &self)
+    fn mk_error<T, F>(&self, res: raw::c_int, f: F) -> Result<T> where
+        u32: Into<T>,
+        F: FnOnce(raw::c_int) -> result::Result<raw::c_int, raw::c_int> {
+        match u32::try_from(res) {
+            // In libftdi1, return codes >= 0 are success. This is the quick path.
+            Ok(r) => Ok(r.into()),
+
+            // Otherwise, use the provided function to determine what error
+            // information to return.
+            Err(_) => match f(res) {
+                Ok(_) => {
+                    let err_str = unsafe {
+                        let err_raw = ffi::ftdi_get_error_string(self.native);
+                        // Manually checked- every error string in libftdi1 is ASCII.
+                        str::from_utf8_unchecked(CStr::from_ptr(err_raw).to_bytes())
+                    };
+
+                    Err(Error::LibFtdi(LibFtdiError::new(err_str)))
+                }
+                Err(unk) => Err(Error::UnexpectedErrorCode(unk)),
+            },
+        }
     }
 
     pub fn new() -> Result<Context> {
@@ -54,10 +78,15 @@ impl Context {
     }
 
     /// Do not call after opening the USB device
-    pub fn set_interface(&mut self, interface: Interface) -> Result<()> {
+    pub fn set_interface(&mut self, interface: Interface) -> Result<u32> {
         let result = unsafe { ffi::ftdi_set_interface(self.native, interface.into()) };
 
-        self.mk_error(result).into()
+        self.mk_error(result, |x| {
+            match x {
+                x @ -1 | x @ -2 | x @ -3 => Ok(x),
+                y => Err(y)
+            }
+        })
     }
 
     pub fn usb_open(&mut self, vendor: u16, product: u16) -> io::Result<()> {

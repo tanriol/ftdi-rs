@@ -1,6 +1,4 @@
-use std::convert::TryFrom;
 use std::error;
-use std::ffi::CStr;
 use std::fmt;
 use std::os::raw;
 use std::str;
@@ -72,56 +70,6 @@ impl error::Error for Error {
 }
 
 pub type Result<T> = result::Result<T, Error>;
-
-pub(super) struct LibFtdiReturn<'a>(raw::c_int, &'a super::Context);
-
-impl<'a> LibFtdiReturn<'a> {
-    pub(super) fn new(rc: raw::c_int, ctx: &'a super::Context) -> Self {
-        LibFtdiReturn(rc, ctx)
-    }
-}
-
-impl<'a> Into<Result<u32>> for LibFtdiReturn<'a> {
-    fn into(self) -> Result<u32> {
-        match u32::try_from(self.0) {
-            // In libftdi1, return codes >= 0 are success.
-            Ok(v) => Ok(v),
-            Err(_) => match self.0 {
-                -13..=-1 | -666 => {
-                    let err_str = unsafe {
-                        let err_raw = super::ffi::ftdi_get_error_string(self.1.native);
-                        // Manually checked- every error string in libftdi1 is ASCII.
-                        str::from_utf8_unchecked(CStr::from_ptr(err_raw).to_bytes())
-                    };
-
-                    Err(Error::LibFtdi(LibFtdiError { err_str }))
-                }
-                unk => Err(Error::UnexpectedErrorCode(unk)),
-            },
-        }
-    }
-}
-
-impl<'a> Into<Result<()>> for LibFtdiReturn<'a> {
-    fn into(self) -> Result<()> {
-        match u32::try_from(self.0) {
-            // In libftdi1, return codes >= 0 are success.
-            Ok(_) => Ok(()),
-            Err(_) => match self.0 {
-                -13..=-1 | -666 => {
-                    let err_str = unsafe {
-                        let err_raw = super::ffi::ftdi_get_error_string(self.1.native);
-                        // Manually checked- every error string in libftdi1 is ASCII.
-                        str::from_utf8_unchecked(CStr::from_ptr(err_raw).to_bytes())
-                    };
-
-                    Err(Error::LibFtdi(LibFtdiError { err_str }))
-                }
-                unk => Err(Error::UnexpectedErrorCode(unk)),
-            },
-        }
-    }
-}
 
 impl std::error::Error for LibFtdiError {}
 impl std::error::Error for LibUsbError {}
