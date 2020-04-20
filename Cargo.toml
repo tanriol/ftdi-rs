@@ -16,3 +16,4 @@ categories = ["api-bindings", "hardware-support"]
 
 [dependencies]
 libftdi1-sys = "1.0.0-alpha2"
+thiserror = "1.0.15"

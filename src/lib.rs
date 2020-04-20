@@ -7,6 +7,10 @@ use libftdi1_sys as ffi;
 use std::io::{self, Read, Write, ErrorKind};
 use std::convert::TryInto;
 
+pub mod error;
+
+pub use error::{Error, Result};
+
 /// The target interface
 pub enum Interface {
     A,
@@ -82,13 +86,13 @@ pub struct Device {
 }
 
 impl Device {
-    pub fn usb_reset(&mut self) -> io::Result<()> {
+    pub fn usb_reset(&mut self) -> Result<()> {
         let result = unsafe { ffi::ftdi_usb_reset(self.context) };
         match result {
             0 => Ok(()),
-            -1 => Err(io::Error::new(ErrorKind::Other, "reset failed")),
-            -2 => Err(io::Error::new(ErrorKind::NotFound, "device not found")),
-            _ => Err(io::Error::new(ErrorKind::Other, "unknown reset error")),
+            -1 => Err(Error::RequestFailed),
+            -2 => Err(Error::NotInitialized),
+            _ => Err(Error::unknown(self.context)),
         }
     }
 
@@ -103,25 +107,25 @@ impl Device {
         }
     }
 
-    pub fn set_latency_timer(&mut self, value: u8) -> io::Result<()> {
+    pub fn set_latency_timer(&mut self, value: u8) -> Result<()> {
         let result = unsafe { ffi::ftdi_set_latency_timer(self.context, value) };
         match result {
             0 => Ok(()),
-            -1 => Err(io::Error::new(ErrorKind::InvalidInput, "bad latency value")),
-            -2 => Err(io::Error::new(ErrorKind::Other, "set latency failed")),
-            -3 => Err(io::Error::new(ErrorKind::NotFound, "device not found")),
-            _ => Err(io::Error::new(ErrorKind::Other, "unknown set latency error")),
+            -1 => Err(Error::InvalidInput("latency value out of range")),
+            -2 => Err(Error::RequestFailed),
+            -3 => Err(Error::NotInitialized),
+            _ => Err(Error::unknown(self.context)),
         }
     }
 
-    pub fn latency_timer(&mut self) -> io::Result<u8> {
+    pub fn latency_timer(&mut self) -> Result<u8> {
         let mut value = 0u8;
         let result = unsafe { ffi::ftdi_get_latency_timer(self.context, &mut value) };
         match result {
             0 => Ok(value),
-            -1 => Err(io::Error::new(ErrorKind::Other, "set latency failed")),
-            -2 => Err(io::Error::new(ErrorKind::NotFound, "device not found")),
-            _ => Err(io::Error::new(ErrorKind::Other, "unknown get latency error")),
+            -1 => Err(Error::RequestFailed),
+            -2 => Err(Error::NotInitialized),
+            _ => Err(Error::unknown(self.context)),
         }
     }
 
