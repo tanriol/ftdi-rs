@@ -66,7 +66,7 @@ impl Context {
                             str::from_utf8_unchecked(CStr::from_ptr(err_raw).to_bytes())
                         };
 
-                        Error::LibFtdi(LibFtdiError::new(err_str))
+                        Error::LibFtdi(LibFtdiError::new(res, err_str))
                     },
                 )
             })

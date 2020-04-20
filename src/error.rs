@@ -14,12 +14,13 @@ pub enum Error {
 
 #[derive(Debug)]
 pub struct LibFtdiError {
+    code: raw::c_int,
     err_str: &'static str,
 }
 
 impl LibFtdiError {
-    pub fn new(err_str: &'static str) -> LibFtdiError {
-        LibFtdiError { err_str }
+    pub fn new(code: raw::c_int, err_str: &'static str) -> LibFtdiError {
+        LibFtdiError { code, err_str }
     }
 }
 
@@ -50,7 +51,7 @@ impl fmt::Display for Error {
 
 impl fmt::Display for LibFtdiError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.err_str)
+        write!(f, "{} ({})", self.err_str, self.code)
     }
 }
 
