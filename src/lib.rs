@@ -31,20 +31,19 @@ impl Into<ffi::ftdi_interface> for Interface {
 }
 
 
-pub struct Context {
+pub struct Builder {
     context: *mut ffi::ftdi_context,
 }
 
-impl Context {
-    pub fn new() -> Context {
+impl Builder {
+    pub fn new() -> Self {
         let context = unsafe { ffi::ftdi_new() };
         // Can be null on either OOM or libusb_init failure
         assert!(!context.is_null());
 
-        Context { context }
+        Self { context }
     }
 
-    /// Do not call after opening the USB device
     pub fn set_interface(&mut self, interface: Interface) -> io::Result<()> {
         let result = unsafe { ffi::ftdi_set_interface(self.context, interface.into()) };
         match result {
@@ -56,10 +55,10 @@ impl Context {
         }
     }
 
-    pub fn usb_open(&mut self, vendor: u16, product: u16) -> io::Result<()> {
+    pub fn usb_open(self, vendor: u16, product: u16) -> io::Result<Device> {
         let result = unsafe { ffi::ftdi_usb_open(self.context, vendor as i32, product as i32) };
         match result {
-            0 => Ok(()),
+            0 => Ok(Device { context: self.context }),
             -3 => Err(io::Error::new(ErrorKind::NotFound, "device not found")),
             -4 => Err(io::Error::new(ErrorKind::Other, "unable to open device")),
             -5 => Err(io::Error::new(ErrorKind::Other, "unable to claim device")),
@@ -72,7 +71,19 @@ impl Context {
             _ => Err(io::Error::new(ErrorKind::Other, "unknown usb_open error")),
         }
     }
+}
 
+impl Drop for Builder {
+    fn drop(&mut self) {
+        unsafe { ffi::ftdi_free(self.context) }
+    }
+}
+
+pub struct Device {
+    context: *mut ffi::ftdi_context,
+}
+
+impl Device {
     pub fn usb_reset(&mut self) -> io::Result<()> {
         let result = unsafe { ffi::ftdi_usb_reset(self.context) };
         match result {
@@ -159,13 +170,13 @@ impl Context {
     }
 }
 
-impl Drop for Context {
+impl Drop for Device {
     fn drop(&mut self) {
         unsafe { ffi::ftdi_free(self.context) }
     }
 }
 
-impl Read for Context {
+impl Read for Device {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let len = buf.len().to_i32().unwrap_or(std::i32::MAX);
         let result = unsafe { ffi::ftdi_read_data(self.context, buf.as_mut_ptr(), len) };
@@ -180,7 +191,7 @@ impl Read for Context {
     }
 }
 
-impl Write for Context {
+impl Write for Device {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         let len = buf.len().to_i32().unwrap_or(std::i32::MAX);
         let result = unsafe { ffi::ftdi_write_data(self.context, buf.as_ptr(), len) };
