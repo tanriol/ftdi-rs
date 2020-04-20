@@ -47,25 +47,29 @@ impl Context {
         D: FnOnce(raw::c_int) -> result::Result<raw::c_int, raw::c_int>,
         F: FnOnce(raw::c_int) -> T,
     {
-        match u32::try_from(res) {
-            // In libftdi1, return codes >= 0 are success. This is the quick path.
-            Ok(_) => Ok(f(res)),
+        // Use try_from as a function to split positive and negative
+        // values in terms of a result::Result.
+        u32::try_from(res)
+            .map(|_| {
+                // In libftdi1, return codes >= 0 are success. This is the quick path.
+                f(res)
+            })
+            .map_err(|_| {
+                // Otherwise, use the provided function default to determine what
+                // error information to return.
+                default(res).map_or_else(
+                    |unk| Error::UnexpectedErrorCode(unk),
+                    |_| {
+                        let err_str = unsafe {
+                            let err_raw = ffi::ftdi_get_error_string(self.native);
+                            // Manually checked- every error string in libftdi1 is ASCII.
+                            str::from_utf8_unchecked(CStr::from_ptr(err_raw).to_bytes())
+                        };
 
-            // Otherwise, use the provided function to determine what error
-            // information to return.
-            Err(_) => match default(res) {
-                Ok(_) => {
-                    let err_str = unsafe {
-                        let err_raw = ffi::ftdi_get_error_string(self.native);
-                        // Manually checked- every error string in libftdi1 is ASCII.
-                        str::from_utf8_unchecked(CStr::from_ptr(err_raw).to_bytes())
-                    };
-
-                    Err(Error::LibFtdi(LibFtdiError::new(err_str)))
-                }
-                Err(unk) => Err(Error::UnexpectedErrorCode(unk)),
-            },
-        }
+                        Error::LibFtdi(LibFtdiError::new(err_str))
+                    },
+                )
+            })
     }
 
     pub fn new() -> Result<Context> {
@@ -86,7 +90,7 @@ impl Context {
         self.mk_error(
             result,
             |e| match e {
-                x @ -1 | x @ -2 | x @ -3 => Ok(x),
+                -1 | -2 | -3 => Ok(e),
                 y => Err(y),
             },
             |_| (),
