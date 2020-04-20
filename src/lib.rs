@@ -91,7 +91,7 @@ impl Device {
         match result {
             0 => Ok(()),
             -1 => Err(Error::RequestFailed),
-            -2 => Err(Error::NotInitialized),
+            -2 => unreachable!("uninitialized context"),
             _ => Err(Error::unknown(self.context)),
         }
     }
@@ -113,7 +113,7 @@ impl Device {
             0 => Ok(()),
             -1 => Err(Error::InvalidInput("latency value out of range")),
             -2 => Err(Error::RequestFailed),
-            -3 => Err(Error::NotInitialized),
+            -3 => unreachable!("uninitialized context"),
             _ => Err(Error::unknown(self.context)),
         }
     }
@@ -124,7 +124,7 @@ impl Device {
         match result {
             0 => Ok(value),
             -1 => Err(Error::RequestFailed),
-            -2 => Err(Error::NotInitialized),
+            -2 => unreachable!("uninitialized context"),
             _ => Err(Error::unknown(self.context)),
         }
     }

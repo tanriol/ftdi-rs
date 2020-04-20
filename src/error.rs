@@ -17,9 +17,6 @@ pub enum Error {
     #[error("input value invalid: {0}")]
     InvalidInput(&'static str),
 
-    // FIXME: temporary, probably remove after state machine is better?
-    #[error("the context has not been initialized yet")]
-    NotInitialized,
     #[error("unknown or unexpected libftdi error: {message}")]
     Unknown { message: &'static str },
 
