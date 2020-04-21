@@ -134,6 +134,7 @@ impl Device {
         };
         match result {
             0 => (),
+            -1 => unreachable!("uninitialized context"),
             err => panic!("unknown set_write_chunksize retval {:?}", err)
         }
     }
@@ -145,6 +146,7 @@ impl Device {
         };
         match result {
             0 => value,
+            -1 => unreachable!("uninitialized context"),
             err => panic!("unknown get_write_chunksize retval {:?}", err)
         }
     }
@@ -155,6 +157,7 @@ impl Device {
         };
         match result {
             0 => (),
+            -1 => unreachable!("uninitialized context"),
             err => panic!("unknown set_write_chunksize retval {:?}", err)
         }
     }
@@ -166,6 +169,7 @@ impl Device {
         };
         match result {
             0 => value,
+            -1 => unreachable!("uninitialized context"),
             err => panic!("unknown get_write_chunksize retval {:?}", err)
         }
     }
@@ -183,7 +187,7 @@ impl Read for Device {
         let result = unsafe { ffi::ftdi_read_data(self.context, buf.as_mut_ptr(), len) };
         match result {
             count if count >= 0 => Ok(count as usize),
-            -666 => Err(io::Error::new(ErrorKind::NotFound, "device not found in read")),
+            -666 => unreachable!("uninitialized context"),
             libusb_error => {
                 Err(io::Error::new(ErrorKind::Other,
                                    format!("libusb_bulk_transfer error {}", libusb_error)))
@@ -198,7 +202,7 @@ impl Write for Device {
         let result = unsafe { ffi::ftdi_write_data(self.context, buf.as_ptr(), len) };
         match result {
             count if count >= 0 => Ok(count as usize),
-            -666 => Err(io::Error::new(ErrorKind::NotFound, "device not found in write")),
+            -666 => unreachable!("uninitialized context"),
             libusb_error => {
                 Err(io::Error::new(ErrorKind::Other,
                                    format!("usb_bulk_write error {}", libusb_error)))
