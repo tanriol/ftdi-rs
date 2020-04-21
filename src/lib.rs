@@ -46,14 +46,14 @@ impl Builder {
         Self { context }
     }
 
-    pub fn set_interface(&mut self, interface: Interface) -> io::Result<()> {
+    pub fn set_interface(&mut self, interface: Interface) -> Result<()> {
         let result = unsafe { ffi::ftdi_set_interface(self.context, interface.into()) };
         match result {
             0 => Ok(()),
-            -1 => Err(io::Error::new(ErrorKind::InvalidInput, "unknown interface")),
-            -2 => Err(io::Error::new(ErrorKind::NotFound, "device not found")),
-            -3 => Err(io::Error::new(ErrorKind::Other, "device already opened")),
-            _ => Err(io::Error::new(ErrorKind::Other, "unknown set latency error")),
+            -1 => unreachable!("unknown interface from ftdi.h"),
+            -2 => unreachable!("missing context"),
+            -3 => unreachable!("device already opened in Builder"),
+            _ => Err(Error::unknown(self.context)),
         }
     }
 
@@ -96,14 +96,13 @@ impl Device {
         }
     }
 
-    pub fn usb_purge_buffers(&mut self) -> io::Result<()> {
+    pub fn usb_purge_buffers(&mut self) -> Result<()> {
         let result = unsafe { ffi::ftdi_usb_purge_buffers(self.context) };
         match result {
             0 => Ok(()),
-            -1 => Err(io::Error::new(ErrorKind::Other, "read purge failed")),
-            -2 => Err(io::Error::new(ErrorKind::Other, "write purge failed")),
-            -3 => Err(io::Error::new(ErrorKind::NotFound, "device not found")),
-            _ => Err(io::Error::new(ErrorKind::Other, "unknown purge error")),
+            -1 /* read */ | -2 /* write */ => Err(Error::RequestFailed),
+            -3 => unreachable!("uninitialized context"),
+            _ => Err(Error::unknown(self.context)),
         }
     }
 
