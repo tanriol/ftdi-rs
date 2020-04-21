@@ -30,7 +30,7 @@ impl Error {
         let message = unsafe { CStr::from_ptr(ffi::ftdi_get_error_string(context)) }
             .to_str()
             .expect("all error strings are expected to be ASCII");
-        Self::Unknown { message }
+        Error::Unknown { message }
     }
 }
 
