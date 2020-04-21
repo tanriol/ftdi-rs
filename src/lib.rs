@@ -148,18 +148,17 @@ impl Device {
         }
     }
 
-    pub fn set_latency_timer(&mut self, value: u8) -> io::Result<()> {
+    pub fn set_latency_timer(&mut self, value: u8) -> Result<()> {
         let result = unsafe { ffi::ftdi_set_latency_timer(self.context, value) };
-        match result {
-            0 => Ok(()),
-            -1 => Err(io::Error::new(ErrorKind::InvalidInput, "bad latency value")),
-            -2 => Err(io::Error::new(ErrorKind::Other, "set latency failed")),
-            -3 => Err(io::Error::new(ErrorKind::NotFound, "device not found")),
-            _ => Err(io::Error::new(
-                ErrorKind::Other,
-                "unknown set latency error",
-            )),
-        }
+
+        map_result(
+            result,
+            |e| match e {
+                -1 | -2 | -3 => Error::LibFtdi(LibFtdiError::new(e, error_string(self.context))),
+                unk => Error::UnexpectedErrorCode(unk),
+            },
+            |_| (),
+        )
     }
 
     pub fn latency_timer(&mut self) -> io::Result<u8> {
