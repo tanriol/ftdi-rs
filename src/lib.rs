@@ -4,6 +4,7 @@
 
 use std::convert::TryInto;
 use std::ffi::CStr;
+use std::num;
 use std::os::raw;
 use std::str;
 
@@ -148,13 +149,14 @@ impl Device {
         }
     }
 
-    pub fn set_latency_timer(&mut self, value: u8) -> Result<()> {
-        let result = unsafe { ffi::ftdi_set_latency_timer(self.context, value) };
+    pub fn set_latency_timer(&mut self, value: num::NonZeroU8) -> Result<()> {
+        let result = unsafe { ffi::ftdi_set_latency_timer(self.context, value.get()) };
 
         map_result(
             result,
             |e| match e {
-                -1 | -2 | -3 => Error::LibFtdi(LibFtdiError::new(e, error_string(self.context))),
+                -2 => Error::LibFtdi(LibFtdiError::new(e, error_string(self.context))),
+                -1 | -3 => unreachable!(),
                 unk => Error::UnexpectedErrorCode(unk),
             },
             |_| (),
