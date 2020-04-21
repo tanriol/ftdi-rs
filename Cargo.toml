@@ -1,15 +1,20 @@
 [package]
-authors = ["Denis Lisov <dennis.lissov@gmail.com>"]
 name = "ftdi"
 version = "0.1.0"
-keywords = ["hardware","ftdi", "libftdi1"]
+authors = ["Denis Lisov <dennis.lissov@gmail.com>"]
+edition = "2018"
 description = "A Rust wrapper over libftdi1 library for FTDI devices"
-license = "MIT"
+#documentation = ""
+#readme = ""
 homepage = "https://github.com/tanriol/ftdi-rs"
 repository = "https://github.com/tanriol/ftdi-rs"
 
+license = "MIT"
+keywords = ["hardware", "ftdi", "libftdi1"]
+categories = ["api-bindings", "hardware-support"]
+
 [dependencies]
-libftdi1-sys = { git = "https://github.com/tanriol/libftdi1-sys", version="1.0.0-alpha2", rev="804d9e8"}
+libftdi1-sys = "1.0.0-alpha2"
 
 [features]
 bindgen = ["libftdi1-sys/bindgen"]

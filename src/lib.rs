@@ -2,16 +2,16 @@
 //!
 //! Note: the library interface is *definitely* unstable for now
 
-extern crate libftdi1_sys as ffi;
-
 use std::convert::TryFrom;
 use std::convert::TryInto;
 use std::ffi::CStr;
-use std::io;
-use std::io::{ErrorKind, Read, Write};
 use std::os::raw;
 use std::result;
 use std::str;
+
+use libftdi1_sys as ffi;
+
+use std::io::{self, Read, Write, ErrorKind};
 
 pub mod error;
 use error::{Error, LibFtdiError, Result};
@@ -37,11 +37,11 @@ impl Into<ffi::ftdi_interface> for Interface {
     }
 }
 
-pub struct Context {
-    native: *mut ffi::ftdi_context,
+pub struct Builder {
+    context: *mut ffi::ftdi_context,
 }
 
-impl Context {
+impl Builder {
     fn mk_error<T, D, F>(&self, res: raw::c_int, default: D, f: F) -> Result<T>
     where
         D: FnOnce(raw::c_int) -> result::Result<raw::c_int, raw::c_int>,
@@ -61,7 +61,7 @@ impl Context {
                     |unk| Error::UnexpectedErrorCode(unk),
                     |_| {
                         let err_str = unsafe {
-                            let err_raw = ffi::ftdi_get_error_string(self.native);
+                            let err_raw = ffi::ftdi_get_error_string(self.context);
                             // Manually checked- every error string in libftdi1 is ASCII.
                             str::from_utf8_unchecked(CStr::from_ptr(err_raw).to_bytes())
                         };
@@ -72,20 +72,20 @@ impl Context {
             })
     }
 
-    pub fn new() -> Result<Context> {
-        let ctx = unsafe { ffi::ftdi_new() };
+    pub fn new() -> Result<Self> {
+        let context = unsafe { ffi::ftdi_new() };
 
         // Can be non-zero on either OOM or libusb_init failure
-        if ctx.is_null() {
+        if context.is_null() {
             Err(Error::MallocFailure)
         } else {
-            Ok(Context { native: ctx })
+            Ok(Self { context })
         }
     }
 
     /// Do not call after opening the USB device
     pub fn set_interface(&mut self, interface: Interface) -> Result<()> {
-        let result = unsafe { ffi::ftdi_set_interface(self.native, interface.into()) };
+        let result = unsafe { ffi::ftdi_set_interface(self.context, interface.into()) };
 
         self.mk_error(
             result,
@@ -97,10 +97,10 @@ impl Context {
         )
     }
 
-    pub fn usb_open(&mut self, vendor: u16, product: u16) -> io::Result<()> {
-        let result = unsafe { ffi::ftdi_usb_open(self.native, vendor as i32, product as i32) };
+    pub fn usb_open(self, vendor: u16, product: u16) -> io::Result<Device> {
+        let result = unsafe { ffi::ftdi_usb_open(self.context, vendor as i32, product as i32) };
         match result {
-            0 => Ok(()),
+            0 => Ok(Device { context: self.context }),
             -3 => Err(io::Error::new(ErrorKind::NotFound, "device not found")),
             -4 => Err(io::Error::new(ErrorKind::Other, "unable to open device")),
             -5 => Err(io::Error::new(ErrorKind::Other, "unable to claim device")),
@@ -119,9 +119,21 @@ impl Context {
             _ => Err(io::Error::new(ErrorKind::Other, "unknown usb_open error")),
         }
     }
+}
 
+impl Drop for Builder {
+    fn drop(&mut self) {
+        unsafe { ffi::ftdi_free(self.context) }
+    }
+}
+
+pub struct Device {
+    context: *mut ffi::ftdi_context,
+}
+
+impl Device {
     pub fn usb_reset(&mut self) -> io::Result<()> {
-        let result = unsafe { ffi::ftdi_usb_reset(self.native) };
+        let result = unsafe { ffi::ftdi_usb_reset(self.context) };
         match result {
             0 => Ok(()),
             -1 => Err(io::Error::new(ErrorKind::Other, "reset failed")),
@@ -131,7 +143,7 @@ impl Context {
     }
 
     pub fn usb_purge_buffers(&mut self) -> io::Result<()> {
-        let result = unsafe { ffi::ftdi_usb_purge_buffers(self.native) };
+        let result = unsafe { ffi::ftdi_usb_purge_buffers(self.context) };
         match result {
             0 => Ok(()),
             -1 => Err(io::Error::new(ErrorKind::Other, "read purge failed")),
@@ -142,7 +154,7 @@ impl Context {
     }
 
     pub fn set_latency_timer(&mut self, value: u8) -> io::Result<()> {
-        let result = unsafe { ffi::ftdi_set_latency_timer(self.native, value) };
+        let result = unsafe { ffi::ftdi_set_latency_timer(self.context, value) };
         match result {
             0 => Ok(()),
             -1 => Err(io::Error::new(ErrorKind::InvalidInput, "bad latency value")),
@@ -157,7 +169,7 @@ impl Context {
 
     pub fn latency_timer(&mut self) -> io::Result<u8> {
         let mut value = 0u8;
-        let result = unsafe { ffi::ftdi_get_latency_timer(self.native, &mut value) };
+        let result = unsafe { ffi::ftdi_get_latency_timer(self.context, &mut value) };
         match result {
             0 => Ok(value),
             -1 => Err(io::Error::new(ErrorKind::Other, "set latency failed")),
@@ -170,7 +182,9 @@ impl Context {
     }
 
     pub fn set_write_chunksize(&mut self, value: u32) {
-        let result = unsafe { ffi::ftdi_write_data_set_chunksize(self.native, value) };
+        let result = unsafe {
+            ffi::ftdi_write_data_set_chunksize(self.context, value)
+        };
         match result {
             0 => (),
             err => panic!("unknown set_write_chunksize retval {:?}", err),
@@ -179,7 +193,9 @@ impl Context {
 
     pub fn write_chunksize(&mut self) -> u32 {
         let mut value = 0;
-        let result = unsafe { ffi::ftdi_write_data_get_chunksize(self.native, &mut value) };
+        let result = unsafe {
+            ffi::ftdi_write_data_get_chunksize(self.context, &mut value)
+        };
         match result {
             0 => value,
             err => panic!("unknown get_write_chunksize retval {:?}", err),
@@ -187,7 +203,9 @@ impl Context {
     }
 
     pub fn set_read_chunksize(&mut self, value: u32) {
-        let result = unsafe { ffi::ftdi_read_data_set_chunksize(self.native, value) };
+        let result = unsafe {
+            ffi::ftdi_read_data_set_chunksize(self.context, value)
+        };
         match result {
             0 => (),
             err => panic!("unknown set_write_chunksize retval {:?}", err),
@@ -196,7 +214,9 @@ impl Context {
 
     pub fn read_chunksize(&mut self) -> u32 {
         let mut value = 0;
-        let result = unsafe { ffi::ftdi_read_data_get_chunksize(self.native, &mut value) };
+        let result = unsafe {
+            ffi::ftdi_read_data_get_chunksize(self.context, &mut value)
+        };
         match result {
             0 => value,
             err => panic!("unknown get_write_chunksize retval {:?}", err),
@@ -204,16 +224,16 @@ impl Context {
     }
 }
 
-impl Drop for Context {
+impl Drop for Device {
     fn drop(&mut self) {
-        unsafe { ffi::ftdi_deinit(self.native) }
+        unsafe { ffi::ftdi_free(self.context) }
     }
 }
 
-impl Read for Context {
+impl Read for Device {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let len = buf.len().try_into().unwrap_or(std::i32::MAX);
-        let result = unsafe { ffi::ftdi_read_data(self.native, buf.as_mut_ptr(), len) };
+        let result = unsafe { ffi::ftdi_read_data(self.context, buf.as_mut_ptr(), len) };
         match result {
             count if count >= 0 => Ok(count as usize),
             -666 => Err(io::Error::new(
@@ -228,10 +248,10 @@ impl Read for Context {
     }
 }
 
-impl Write for Context {
+impl Write for Device {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         let len = buf.len().try_into().unwrap_or(std::i32::MAX);
-        let result = unsafe { ffi::ftdi_write_data(self.native, buf.as_ptr(), len) };
+        let result = unsafe { ffi::ftdi_write_data(self.context, buf.as_ptr(), len) };
         match result {
             count if count >= 0 => Ok(count as usize),
             -666 => Err(io::Error::new(
@@ -248,10 +268,4 @@ impl Write for Context {
     fn flush(&mut self) -> io::Result<()> {
         Ok(())
     }
-}
-
-#[cfg(test)]
-mod test {
-    #[test]
-    fn it_works() {}
 }
