@@ -11,7 +11,7 @@ use std::str;
 
 use libftdi1_sys as ffi;
 
-use std::io::{self, Read, Write, ErrorKind};
+use std::io::{self, ErrorKind, Read, Write};
 
 pub mod error;
 use error::{Error, LibFtdiError, Result};
@@ -100,7 +100,9 @@ impl Builder {
     pub fn usb_open(self, vendor: u16, product: u16) -> io::Result<Device> {
         let result = unsafe { ffi::ftdi_usb_open(self.context, vendor as i32, product as i32) };
         match result {
-            0 => Ok(Device { context: self.context }),
+            0 => Ok(Device {
+                context: self.context,
+            }),
             -3 => Err(io::Error::new(ErrorKind::NotFound, "device not found")),
             -4 => Err(io::Error::new(ErrorKind::Other, "unable to open device")),
             -5 => Err(io::Error::new(ErrorKind::Other, "unable to claim device")),
@@ -182,9 +184,7 @@ impl Device {
     }
 
     pub fn set_write_chunksize(&mut self, value: u32) {
-        let result = unsafe {
-            ffi::ftdi_write_data_set_chunksize(self.context, value)
-        };
+        let result = unsafe { ffi::ftdi_write_data_set_chunksize(self.context, value) };
         match result {
             0 => (),
             err => panic!("unknown set_write_chunksize retval {:?}", err),
@@ -193,9 +193,7 @@ impl Device {
 
     pub fn write_chunksize(&mut self) -> u32 {
         let mut value = 0;
-        let result = unsafe {
-            ffi::ftdi_write_data_get_chunksize(self.context, &mut value)
-        };
+        let result = unsafe { ffi::ftdi_write_data_get_chunksize(self.context, &mut value) };
         match result {
             0 => value,
             err => panic!("unknown get_write_chunksize retval {:?}", err),
@@ -203,9 +201,7 @@ impl Device {
     }
 
     pub fn set_read_chunksize(&mut self, value: u32) {
-        let result = unsafe {
-            ffi::ftdi_read_data_set_chunksize(self.context, value)
-        };
+        let result = unsafe { ffi::ftdi_read_data_set_chunksize(self.context, value) };
         match result {
             0 => (),
             err => panic!("unknown set_write_chunksize retval {:?}", err),
@@ -214,9 +210,7 @@ impl Device {
 
     pub fn read_chunksize(&mut self) -> u32 {
         let mut value = 0;
-        let result = unsafe {
-            ffi::ftdi_read_data_get_chunksize(self.context, &mut value)
-        };
+        let result = unsafe { ffi::ftdi_read_data_get_chunksize(self.context, &mut value) };
         match result {
             0 => value,
             err => panic!("unknown get_write_chunksize retval {:?}", err),
