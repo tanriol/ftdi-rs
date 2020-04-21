@@ -2,11 +2,9 @@
 //!
 //! Note: the library interface is *definitely* unstable for now
 
-use std::convert::TryFrom;
 use std::convert::TryInto;
 use std::ffi::CStr;
 use std::os::raw;
-use std::result;
 use std::str;
 
 use libftdi1_sys as ffi;
@@ -37,41 +35,36 @@ impl Into<ffi::ftdi_interface> for Interface {
     }
 }
 
+fn error_string(context: *mut ffi::ftdi_context) -> &'static str {
+    unsafe {
+        // Null pointer returns empty string. And we otherwise can't
+        // use a context without Builder::new() returning first.
+        let err_raw = ffi::ftdi_get_error_string(context);
+        // Manually checked- every error string in libftdi1 is ASCII.
+        str::from_utf8_unchecked(CStr::from_ptr(err_raw).to_bytes())
+    }
+}
+
+fn map_result<T, D, F>(res: raw::c_int, default: D, f: F) -> Result<T>
+where
+    D: FnOnce(raw::c_int) -> Error,
+    F: FnOnce(raw::c_int) -> T,
+{
+    if res.is_negative() {
+        // Use the provided function default to determine what
+        // error information to return.
+        Err(default(res))
+    } else {
+        // In libftdi1, return codes >= 0 are success. This is the quick path.
+        Ok(f(res))
+    }
+}
+
 pub struct Builder {
     context: *mut ffi::ftdi_context,
 }
 
 impl Builder {
-    fn mk_error<T, D, F>(&self, res: raw::c_int, default: D, f: F) -> Result<T>
-    where
-        D: FnOnce(raw::c_int) -> result::Result<raw::c_int, raw::c_int>,
-        F: FnOnce(raw::c_int) -> T,
-    {
-        // Use try_from as a function to split positive and negative
-        // values in terms of a result::Result.
-        u32::try_from(res)
-            .map(|_| {
-                // In libftdi1, return codes >= 0 are success. This is the quick path.
-                f(res)
-            })
-            .map_err(|_| {
-                // Otherwise, use the provided function default to determine what
-                // error information to return.
-                default(res).map_or_else(
-                    |unk| Error::UnexpectedErrorCode(unk),
-                    |_| {
-                        let err_str = unsafe {
-                            let err_raw = ffi::ftdi_get_error_string(self.context);
-                            // Manually checked- every error string in libftdi1 is ASCII.
-                            str::from_utf8_unchecked(CStr::from_ptr(err_raw).to_bytes())
-                        };
-
-                        Error::LibFtdi(LibFtdiError::new(res, err_str))
-                    },
-                )
-            })
-    }
-
     pub fn new() -> Result<Self> {
         let context = unsafe { ffi::ftdi_new() };
 
@@ -87,11 +80,11 @@ impl Builder {
     pub fn set_interface(&mut self, interface: Interface) -> Result<()> {
         let result = unsafe { ffi::ftdi_set_interface(self.context, interface.into()) };
 
-        self.mk_error(
+        map_result(
             result,
             |e| match e {
-                -1 | -2 | -3 => Ok(e),
-                y => Err(y),
+                -1 | -2 | -3 => Error::LibFtdi(LibFtdiError::new(e, error_string(self.context))),
+                unk => Error::UnexpectedErrorCode(unk),
             },
             |_| (),
         )
