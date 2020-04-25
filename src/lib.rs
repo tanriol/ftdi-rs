@@ -6,6 +6,7 @@ use libftdi1_sys as ffi;
 
 use std::convert::TryInto;
 use std::io::{self, Read, Write};
+use std::os::raw;
 
 pub mod error;
 
@@ -167,6 +168,34 @@ impl Device {
             0 => value,
             -1 => unreachable!("uninitialized context"),
             err => panic!("unknown get_write_chunksize retval {:?}", err),
+        }
+    }
+
+    pub fn read_pins(&mut self) -> Result<u8> {
+        let mut pins : u8 = 0;
+        let pins_ptr = std::slice::from_mut(&mut pins).as_mut_ptr();
+
+        let result = unsafe { ffi::ftdi_read_pins(self.context, pins_ptr) };
+
+        match result {
+            0 => Ok(pins),
+            -1 => Err(Error::RequestFailed), // read pins failed
+            -2 => unreachable!("uninitialized context"),
+            _ => Err(Error::unknown(self.context)),
+        }
+    }
+
+    pub fn set_baudrate(&mut self, baudrate : u32) -> Result<()> {
+        // TODO: libftdi1 will multiply baud rates in bitbang mode
+        // by 4. This leads to UB if baudrate >= INT_MAX/4.
+        let result = unsafe { ffi::ftdi_set_baudrate(self.context, baudrate as raw::c_int) };
+
+        match result {
+            0 => Ok(()),
+            -1 => Err(Error::InvalidInput("baud rate not supported")),
+            -2 => Err(Error::RequestFailed), // set baudrate failed
+            -3 => unreachable!("uninitialized context"),
+            _ => Err(Error::unknown(self.context))
         }
     }
 }
