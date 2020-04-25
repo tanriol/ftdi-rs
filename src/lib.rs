@@ -32,7 +32,6 @@ impl Into<ffi::ftdi_interface> for Interface {
     }
 }
 
-
 pub struct Builder {
     context: *mut ffi::ftdi_context,
 }
@@ -65,11 +64,11 @@ impl Builder {
             }),
             -1 => Err(Error::EnumerationFailed), // usb_find_busses() failed
             -2 => Err(Error::EnumerationFailed), // usb_find_devices() failed
-            -3 => Err(Error::DeviceNotFound), // usb device not found
-            -4 => Err(Error::AccessFailed), // unable to open device
-            -5 => Err(Error::ClaimFailed), // unable to claim device
-            -6 => Err(Error::RequestFailed), // reset failed
-            -7 => Err(Error::RequestFailed), // set baudrate failed
+            -3 => Err(Error::DeviceNotFound),    // usb device not found
+            -4 => Err(Error::AccessFailed),      // unable to open device
+            -5 => Err(Error::ClaimFailed),       // unable to claim device
+            -6 => Err(Error::RequestFailed),     // reset failed
+            -7 => Err(Error::RequestFailed),     // set baudrate failed
             -8 => Err(Error::EnumerationFailed), // get product description failed
             -9 => Err(Error::EnumerationFailed), // get serial number failed
             -10 => Err(Error::unknown(self.context)), // unable to close device
@@ -134,48 +133,40 @@ impl Device {
     }
 
     pub fn set_write_chunksize(&mut self, value: u32) {
-        let result = unsafe {
-            ffi::ftdi_write_data_set_chunksize(self.context, value)
-        };
+        let result = unsafe { ffi::ftdi_write_data_set_chunksize(self.context, value) };
         match result {
             0 => (),
             -1 => unreachable!("uninitialized context"),
-            err => panic!("unknown set_write_chunksize retval {:?}", err)
+            err => panic!("unknown set_write_chunksize retval {:?}", err),
         }
     }
 
     pub fn write_chunksize(&mut self) -> u32 {
         let mut value = 0;
-        let result = unsafe {
-            ffi::ftdi_write_data_get_chunksize(self.context, &mut value)
-        };
+        let result = unsafe { ffi::ftdi_write_data_get_chunksize(self.context, &mut value) };
         match result {
             0 => value,
             -1 => unreachable!("uninitialized context"),
-            err => panic!("unknown get_write_chunksize retval {:?}", err)
+            err => panic!("unknown get_write_chunksize retval {:?}", err),
         }
     }
 
     pub fn set_read_chunksize(&mut self, value: u32) {
-        let result = unsafe {
-            ffi::ftdi_read_data_set_chunksize(self.context, value)
-        };
+        let result = unsafe { ffi::ftdi_read_data_set_chunksize(self.context, value) };
         match result {
             0 => (),
             -1 => unreachable!("uninitialized context"),
-            err => panic!("unknown set_write_chunksize retval {:?}", err)
+            err => panic!("unknown set_write_chunksize retval {:?}", err),
         }
     }
 
     pub fn read_chunksize(&mut self) -> u32 {
         let mut value = 0;
-        let result = unsafe {
-            ffi::ftdi_read_data_get_chunksize(self.context, &mut value)
-        };
+        let result = unsafe { ffi::ftdi_read_data_get_chunksize(self.context, &mut value) };
         match result {
             0 => value,
             -1 => unreachable!("uninitialized context"),
-            err => panic!("unknown get_write_chunksize retval {:?}", err)
+            err => panic!("unknown get_write_chunksize retval {:?}", err),
         }
     }
 }
@@ -213,4 +204,3 @@ impl Write for Device {
         Ok(())
     }
 }
-
