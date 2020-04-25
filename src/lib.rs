@@ -4,8 +4,12 @@
 
 use libftdi1_sys as ffi;
 
-use std::io::{self, Read, Write, ErrorKind};
 use std::convert::TryInto;
+use std::io::{self, Read, Write};
+
+pub mod error;
+
+pub use error::{Error, Result};
 
 /// The target interface
 pub enum Interface {
@@ -42,31 +46,36 @@ impl Builder {
         Self { context }
     }
 
-    pub fn set_interface(&mut self, interface: Interface) -> io::Result<()> {
+    pub fn set_interface(&mut self, interface: Interface) -> Result<()> {
         let result = unsafe { ffi::ftdi_set_interface(self.context, interface.into()) };
         match result {
             0 => Ok(()),
-            -1 => Err(io::Error::new(ErrorKind::InvalidInput, "unknown interface")),
-            -2 => Err(io::Error::new(ErrorKind::NotFound, "device not found")),
-            -3 => Err(io::Error::new(ErrorKind::Other, "device already opened")),
-            _ => Err(io::Error::new(ErrorKind::Other, "unknown set latency error")),
+            -1 => unreachable!("unknown interface from ftdi.h"),
+            -2 => unreachable!("missing context"),
+            -3 => unreachable!("device already opened in Builder"),
+            _ => Err(Error::unknown(self.context)),
         }
     }
 
-    pub fn usb_open(self, vendor: u16, product: u16) -> io::Result<Device> {
+    pub fn usb_open(self, vendor: u16, product: u16) -> Result<Device> {
         let result = unsafe { ffi::ftdi_usb_open(self.context, vendor as i32, product as i32) };
         match result {
-            0 => Ok(Device { context: self.context }),
-            -3 => Err(io::Error::new(ErrorKind::NotFound, "device not found")),
-            -4 => Err(io::Error::new(ErrorKind::Other, "unable to open device")),
-            -5 => Err(io::Error::new(ErrorKind::Other, "unable to claim device")),
-            -6 => Err(io::Error::new(ErrorKind::Other, "reset failed")),
-            -7 => Err(io::Error::new(ErrorKind::Other, "set baudrate failed")),
-            -8 => Err(io::Error::new(ErrorKind::Other, "get description failed")),
-            -9 => Err(io::Error::new(ErrorKind::Other, "get serial failed")),
-            -12 => Err(io::Error::new(ErrorKind::Other, "libusb_get_device_list failed")),
-            -13 => Err(io::Error::new(ErrorKind::Other, "libusb_get_device_descriptor failed")),
-            _ => Err(io::Error::new(ErrorKind::Other, "unknown usb_open error")),
+            0 => Ok(Device {
+                context: self.context,
+            }),
+            -1 => Err(Error::EnumerationFailed), // usb_find_busses() failed
+            -2 => Err(Error::EnumerationFailed), // usb_find_devices() failed
+            -3 => Err(Error::DeviceNotFound), // usb device not found
+            -4 => Err(Error::AccessFailed), // unable to open device
+            -5 => Err(Error::ClaimFailed), // unable to claim device
+            -6 => Err(Error::RequestFailed), // reset failed
+            -7 => Err(Error::RequestFailed), // set baudrate failed
+            -8 => Err(Error::EnumerationFailed), // get product description failed
+            -9 => Err(Error::EnumerationFailed), // get serial number failed
+            -10 => Err(Error::unknown(self.context)), // unable to close device
+            -11 => unreachable!("uninitialized context"), // ftdi context invalid
+            -12 => Err(Error::EnumerationFailed), // libusb_get_device_list() failed
+            _ => Err(Error::unknown(self.context)),
         }
     }
 }
@@ -82,46 +91,45 @@ pub struct Device {
 }
 
 impl Device {
-    pub fn usb_reset(&mut self) -> io::Result<()> {
+    pub fn usb_reset(&mut self) -> Result<()> {
         let result = unsafe { ffi::ftdi_usb_reset(self.context) };
         match result {
             0 => Ok(()),
-            -1 => Err(io::Error::new(ErrorKind::Other, "reset failed")),
-            -2 => Err(io::Error::new(ErrorKind::NotFound, "device not found")),
-            _ => Err(io::Error::new(ErrorKind::Other, "unknown reset error")),
+            -1 => Err(Error::RequestFailed),
+            -2 => unreachable!("uninitialized context"),
+            _ => Err(Error::unknown(self.context)),
         }
     }
 
-    pub fn usb_purge_buffers(&mut self) -> io::Result<()> {
+    pub fn usb_purge_buffers(&mut self) -> Result<()> {
         let result = unsafe { ffi::ftdi_usb_purge_buffers(self.context) };
         match result {
             0 => Ok(()),
-            -1 => Err(io::Error::new(ErrorKind::Other, "read purge failed")),
-            -2 => Err(io::Error::new(ErrorKind::Other, "write purge failed")),
-            -3 => Err(io::Error::new(ErrorKind::NotFound, "device not found")),
-            _ => Err(io::Error::new(ErrorKind::Other, "unknown purge error")),
+            -1 /* read */ | -2 /* write */ => Err(Error::RequestFailed),
+            -3 => unreachable!("uninitialized context"),
+            _ => Err(Error::unknown(self.context)),
         }
     }
 
-    pub fn set_latency_timer(&mut self, value: u8) -> io::Result<()> {
+    pub fn set_latency_timer(&mut self, value: u8) -> Result<()> {
         let result = unsafe { ffi::ftdi_set_latency_timer(self.context, value) };
         match result {
             0 => Ok(()),
-            -1 => Err(io::Error::new(ErrorKind::InvalidInput, "bad latency value")),
-            -2 => Err(io::Error::new(ErrorKind::Other, "set latency failed")),
-            -3 => Err(io::Error::new(ErrorKind::NotFound, "device not found")),
-            _ => Err(io::Error::new(ErrorKind::Other, "unknown set latency error")),
+            -1 => Err(Error::InvalidInput("latency value out of range")),
+            -2 => Err(Error::RequestFailed),
+            -3 => unreachable!("uninitialized context"),
+            _ => Err(Error::unknown(self.context)),
         }
     }
 
-    pub fn latency_timer(&mut self) -> io::Result<u8> {
+    pub fn latency_timer(&mut self) -> Result<u8> {
         let mut value = 0u8;
         let result = unsafe { ffi::ftdi_get_latency_timer(self.context, &mut value) };
         match result {
             0 => Ok(value),
-            -1 => Err(io::Error::new(ErrorKind::Other, "set latency failed")),
-            -2 => Err(io::Error::new(ErrorKind::NotFound, "device not found")),
-            _ => Err(io::Error::new(ErrorKind::Other, "unknown get latency error")),
+            -1 => Err(Error::RequestFailed),
+            -2 => unreachable!("uninitialized context"),
+            _ => Err(Error::unknown(self.context)),
         }
     }
 
@@ -131,6 +139,7 @@ impl Device {
         };
         match result {
             0 => (),
+            -1 => unreachable!("uninitialized context"),
             err => panic!("unknown set_write_chunksize retval {:?}", err)
         }
     }
@@ -142,6 +151,7 @@ impl Device {
         };
         match result {
             0 => value,
+            -1 => unreachable!("uninitialized context"),
             err => panic!("unknown get_write_chunksize retval {:?}", err)
         }
     }
@@ -152,6 +162,7 @@ impl Device {
         };
         match result {
             0 => (),
+            -1 => unreachable!("uninitialized context"),
             err => panic!("unknown set_write_chunksize retval {:?}", err)
         }
     }
@@ -163,6 +174,7 @@ impl Device {
         };
         match result {
             0 => value,
+            -1 => unreachable!("uninitialized context"),
             err => panic!("unknown get_write_chunksize retval {:?}", err)
         }
     }
@@ -180,11 +192,8 @@ impl Read for Device {
         let result = unsafe { ffi::ftdi_read_data(self.context, buf.as_mut_ptr(), len) };
         match result {
             count if count >= 0 => Ok(count as usize),
-            -666 => Err(io::Error::new(ErrorKind::NotFound, "device not found in read")),
-            libusb_error => {
-                Err(io::Error::new(ErrorKind::Other,
-                                   format!("libusb_bulk_transfer error {}", libusb_error)))
-            }
+            -666 => unreachable!("uninitialized context"),
+            err => Err(error::libusb_to_io(err)),
         }
     }
 }
@@ -195,11 +204,8 @@ impl Write for Device {
         let result = unsafe { ffi::ftdi_write_data(self.context, buf.as_ptr(), len) };
         match result {
             count if count >= 0 => Ok(count as usize),
-            -666 => Err(io::Error::new(ErrorKind::NotFound, "device not found in write")),
-            libusb_error => {
-                Err(io::Error::new(ErrorKind::Other,
-                                   format!("usb_bulk_write error {}", libusb_error)))
-            }
+            -666 => unreachable!("uninitialized context"),
+            err => Err(error::libusb_to_io(err)),
         }
     }
 
