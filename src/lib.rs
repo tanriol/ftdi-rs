@@ -4,8 +4,8 @@
 
 use libftdi1_sys as ffi;
 
-use std::io::{self, Read, Write, ErrorKind};
 use std::convert::TryInto;
+use std::io::{self, Read, Write};
 
 pub mod error;
 
@@ -57,20 +57,25 @@ impl Builder {
         }
     }
 
-    pub fn usb_open(self, vendor: u16, product: u16) -> io::Result<Device> {
+    pub fn usb_open(self, vendor: u16, product: u16) -> Result<Device> {
         let result = unsafe { ffi::ftdi_usb_open(self.context, vendor as i32, product as i32) };
         match result {
-            0 => Ok(Device { context: self.context }),
-            -3 => Err(io::Error::new(ErrorKind::NotFound, "device not found")),
-            -4 => Err(io::Error::new(ErrorKind::Other, "unable to open device")),
-            -5 => Err(io::Error::new(ErrorKind::Other, "unable to claim device")),
-            -6 => Err(io::Error::new(ErrorKind::Other, "reset failed")),
-            -7 => Err(io::Error::new(ErrorKind::Other, "set baudrate failed")),
-            -8 => Err(io::Error::new(ErrorKind::Other, "get description failed")),
-            -9 => Err(io::Error::new(ErrorKind::Other, "get serial failed")),
-            -12 => Err(io::Error::new(ErrorKind::Other, "libusb_get_device_list failed")),
-            -13 => Err(io::Error::new(ErrorKind::Other, "libusb_get_device_descriptor failed")),
-            _ => Err(io::Error::new(ErrorKind::Other, "unknown usb_open error")),
+            0 => Ok(Device {
+                context: self.context,
+            }),
+            -1 => Err(Error::EnumerationFailed), // usb_find_busses() failed
+            -2 => Err(Error::EnumerationFailed), // usb_find_devices() failed
+            -3 => Err(Error::DeviceNotFound), // usb device not found
+            -4 => Err(Error::AccessFailed), // unable to open device
+            -5 => Err(Error::ClaimFailed), // unable to claim device
+            -6 => Err(Error::RequestFailed), // reset failed
+            -7 => Err(Error::RequestFailed), // set baudrate failed
+            -8 => Err(Error::EnumerationFailed), // get product description failed
+            -9 => Err(Error::EnumerationFailed), // get serial number failed
+            -10 => Err(Error::unknown(self.context)), // unable to close device
+            -11 => unreachable!("uninitialized context"), // ftdi context invalid
+            -12 => Err(Error::EnumerationFailed), // libusb_get_device_list() failed
+            _ => Err(Error::unknown(self.context)),
         }
     }
 }

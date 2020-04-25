@@ -7,8 +7,14 @@ use super::ffi;
 
 #[derive(Debug, Error)]
 pub enum Error {
+    #[error("failed to enumerate devices to open the correct one")]
+    EnumerationFailed,
     #[error("the specified device could not be found")]
     DeviceNotFound,
+    #[error("failed to open the specified device")]
+    AccessFailed,
+    #[error("the requested interface could not be claimed")]
+    ClaimFailed,
     #[error("the device has been disconnected from the system")]
     Disconnected,
     #[error("the device does not have the specified interface")]
