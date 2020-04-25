@@ -17,8 +17,8 @@ pub enum Error {
     #[error("input value invalid: {0}")]
     InvalidInput(&'static str),
 
-    #[error("unknown or unexpected libftdi error: {message}")]
-    Unknown { message: &'static str },
+    #[error("unknown or unexpected libftdi error")]
+    Unknown { source: LibFtdiError },
 
     #[error("INTERNAL, DO NOT USE")]
     #[doc(hidden)]
@@ -30,8 +30,16 @@ impl Error {
         let message = unsafe { CStr::from_ptr(ffi::ftdi_get_error_string(context)) }
             .to_str()
             .expect("all error strings are expected to be ASCII");
-        Error::Unknown { message }
+        Error::Unknown {
+            source: LibFtdiError { message },
+        }
     }
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
+
+#[derive(Debug, Error)]
+#[error("libftdi: {message}")]
+pub struct LibFtdiError {
+    message: &'static str,
+}
