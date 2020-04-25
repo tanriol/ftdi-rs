@@ -2,16 +2,19 @@ use thiserror::Error;
 
 use std::ffi::CStr;
 use std::io;
+use std::str;
 
 use super::ffi;
 
 #[derive(Debug, Error)]
 pub enum Error {
+    #[error("failed to initialize the ftdi context")]
+    InitFailed,
     #[error("failed to enumerate devices to open the correct one")]
     EnumerationFailed,
     #[error("the specified device could not be found")]
     DeviceNotFound,
-    #[error("failed to open the specified device")]
+    #[error("failed to open or close the specified device")]
     AccessFailed,
     #[error("the requested interface could not be claimed")]
     ClaimFailed,
@@ -34,9 +37,14 @@ pub enum Error {
 
 impl Error {
     pub(crate) fn unknown(context: *mut ffi::ftdi_context) -> Self {
-        let message = unsafe { CStr::from_ptr(ffi::ftdi_get_error_string(context)) }
-            .to_str()
-            .expect("all error strings are expected to be ASCII");
+        let message = unsafe {
+            // Null pointer returns empty string. And we otherwise can't
+            // use a context without Builder::new() returning first.
+            let err_raw = ffi::ftdi_get_error_string(context);
+            // Manually checked- every error string in libftdi1 is ASCII.
+            str::from_utf8_unchecked(CStr::from_ptr(err_raw).to_bytes())
+        };
+
         Error::Unknown {
             source: LibFtdiError { message },
         }
@@ -51,7 +59,13 @@ pub struct LibFtdiError {
     message: &'static str,
 }
 
+#[derive(Debug, Error)]
+#[error("libusb error code {code}")]
+pub struct LibUsbError {
+    code: i32,
+}
+
 // Ideally this should be using libusb bindings, but we don't depend on any specific USB crate yet
 pub(crate) fn libusb_to_io(code: i32) -> io::Error {
-    io::Error::new(io::ErrorKind::Other, format!("libusb error code {}", code))
+    io::Error::new(io::ErrorKind::Other, LibUsbError { code })
 }

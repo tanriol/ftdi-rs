@@ -119,6 +119,26 @@ impl Device {
         }
     }
 
+    pub fn usb_close(mut self) -> Result<Builder> {
+        let result = unsafe { ffi::ftdi_usb_close(self.context) };
+
+        match result {
+            0 => {
+                let context = std::mem::replace(&mut self.context, std::ptr::null_mut());
+                std::mem::forget(self);
+
+                let builder = Builder {
+                    context
+                };
+
+                Ok(builder)
+            },
+            -1 => Err(Error::AccessFailed), // usb release failed
+            -3 => unreachable!("uninitialized context"),
+            _ => Err(Error::unknown(self.context))
+        }
+    }
+
     pub fn usb_purge_buffers(&mut self) -> Result<()> {
         let result = unsafe { ffi::ftdi_usb_purge_buffers(self.context) };
         match result {
