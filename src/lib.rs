@@ -21,6 +21,24 @@ pub enum Interface {
     Any,
 }
 
+pub enum FlowControl {
+    Disable,
+    RtsCts,
+    DtrDsr,
+    XonXoff
+}
+
+impl Into<i32> for FlowControl {
+    fn into(self) -> i32 {
+        match self {
+            FlowControl::Disable => 0x0,
+            FlowControl::RtsCts => (0x1 << 8),
+            FlowControl::DtrDsr => (0x2 << 8),
+            FlowControl::XonXoff => (0x4 << 8),
+        }
+    }
+}
+
 impl Into<ffi::ftdi_interface> for Interface {
     fn into(self) -> ffi::ftdi_interface {
         match self {
@@ -195,6 +213,17 @@ impl Device {
             -1 => Err(Error::InvalidInput("baud rate not supported")),
             -2 => Err(Error::RequestFailed), // set baudrate failed
             -3 => unreachable!("uninitialized context"),
+            _ => Err(Error::unknown(self.context))
+        }
+    }
+
+    pub fn set_flow_control(&mut self, flowctrl: FlowControl) -> Result<()> {
+        let result = unsafe { ffi::ftdi_setflowctrl(self.context, flowctrl.into()) };
+
+        match result {
+            0 => Ok(()),
+            -1 => Err(Error::RequestFailed), // set flow control failed
+            -2 => unreachable!("uninitialized context"),
             _ => Err(Error::unknown(self.context))
         }
     }
