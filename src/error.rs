@@ -1,6 +1,7 @@
 use thiserror::Error;
 
 use std::ffi::CStr;
+use std::io;
 
 use super::ffi;
 
@@ -42,4 +43,9 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[error("libftdi: {message}")]
 pub struct LibFtdiError {
     message: &'static str,
+}
+
+// Ideally this should be using libusb bindings, but we don't depend on any specific USB crate yet
+pub(crate) fn libusb_to_io(code: i32) -> io::Error {
+    io::Error::new(io::ErrorKind::Other, format!("libusb error code {}", code))
 }

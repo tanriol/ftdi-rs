@@ -188,10 +188,7 @@ impl Read for Device {
         match result {
             count if count >= 0 => Ok(count as usize),
             -666 => unreachable!("uninitialized context"),
-            libusb_error => {
-                Err(io::Error::new(ErrorKind::Other,
-                                   format!("libusb_bulk_transfer error {}", libusb_error)))
-            }
+            err => Err(error::libusb_to_io(err)),
         }
     }
 }
@@ -203,10 +200,7 @@ impl Write for Device {
         match result {
             count if count >= 0 => Ok(count as usize),
             -666 => unreachable!("uninitialized context"),
-            libusb_error => {
-                Err(io::Error::new(ErrorKind::Other,
-                                   format!("usb_bulk_write error {}", libusb_error)))
-            }
+            err => Err(error::libusb_to_io(err)),
         }
     }
 
