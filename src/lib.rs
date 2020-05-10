@@ -173,7 +173,14 @@ impl Device {
 
 impl Drop for Device {
     fn drop(&mut self) {
-        unsafe { ffi::ftdi_free(self.context) }
+        let result = unsafe { ffi::ftdi_usb_close(self.context) };
+        match result {
+            0 => {}
+            -1 => { /* TODO emit warning ("usb_release failed") */ }
+            -3 => unreachable!("uninitialized context"),
+            _ => panic!("undocumented ftdi_usb_close return value"),
+        };
+        unsafe { ffi::ftdi_free(self.context); }
     }
 }
 
