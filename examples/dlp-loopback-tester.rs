@@ -8,26 +8,27 @@ use std::io::{Read, Write};
 
 fn main() {
     println!("Starting tester...");
-    let mut builder = ftdi::Builder::new();
-    builder.set_interface(ftdi::Interface::A).unwrap();
+    let device = ftdi::find_by_vid_pid(0x0403, 0x6010)
+        .interface(ftdi::Interface::A)
+        .open();
 
-    if let Ok(mut context) = builder.usb_open(0x0403, 0x6010) {
+    if let Ok(mut device) = device {
         println!("Device found and opened");
-        context.usb_reset().unwrap();
-        context.usb_purge_buffers().unwrap();
-        context.set_latency_timer(2).unwrap();
+        device.usb_reset().unwrap();
+        device.usb_purge_buffers().unwrap();
+        device.set_latency_timer(2).unwrap();
 
         // Junk test
         let mut junk = vec![];
-        context.read_to_end(&mut junk).unwrap();
+        device.read_to_end(&mut junk).unwrap();
         if junk.len() > 0 {
             println!("Junk in line: {:?}", junk);
         }
 
         // Ping test
-        context.write_all(&vec![0x00]).unwrap();
+        device.write_all(&vec![0x00]).unwrap();
         let mut reply = vec![];
-        context.read_to_end(&mut reply).unwrap();
+        device.read_to_end(&mut reply).unwrap();
         if reply != vec![0x56] {
             println!("Wrong ping reply {:?} (expected {:?}", reply, vec![0x56]);
         }
@@ -36,17 +37,17 @@ fn main() {
             let num = num as u8;
 
             // Loopback test
-            context.write_all(&vec![0x20, num]).unwrap();
+            device.write_all(&vec![0x20, num]).unwrap();
             let mut reply = vec![];
-            context.read_to_end(&mut reply).unwrap();
+            device.read_to_end(&mut reply).unwrap();
             if reply != vec![num] {
                 println!("Wrong loopback reply {:?} (expected {:?}", reply, vec![num]);
             }
 
             // Complement loopback test
-            context.write_all(&vec![0x21, num]).unwrap();
+            device.write_all(&vec![0x21, num]).unwrap();
             let mut reply = vec![];
-            context.read_to_end(&mut reply).unwrap();
+            device.read_to_end(&mut reply).unwrap();
             let complement = 255 - num;
             if reply != vec![complement] {
                 println!(

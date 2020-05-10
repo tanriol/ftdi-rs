@@ -11,6 +11,8 @@ pub enum Error {
     EnumerationFailed,
     #[error("the specified device could not be found")]
     DeviceNotFound,
+    #[error("libftdi context allocation failed")]
+    AllocationFailed,
     #[error("failed to open the specified device")]
     AccessFailed,
     #[error("the requested interface could not be claimed")]

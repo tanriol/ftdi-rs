@@ -8,8 +8,12 @@ use std::convert::TryInto;
 use std::io::{self, Read, Write};
 
 pub mod error;
+mod opener;
 
 pub use error::{Error, Result};
+pub use opener::{Opener, find_by_vid_pid, find_by_bus_address};
+#[cfg(feature = "libusb1-sys")]
+pub use opener::find_by_libusb_device;
 
 /// The target interface
 pub enum Interface {
@@ -32,58 +36,6 @@ impl Into<ffi::ftdi_interface> for Interface {
     }
 }
 
-pub struct Builder {
-    context: *mut ffi::ftdi_context,
-}
-
-impl Builder {
-    pub fn new() -> Self {
-        let context = unsafe { ffi::ftdi_new() };
-        // Can be null on either OOM or libusb_init failure
-        assert!(!context.is_null());
-
-        Self { context }
-    }
-
-    pub fn set_interface(&mut self, interface: Interface) -> Result<()> {
-        let result = unsafe { ffi::ftdi_set_interface(self.context, interface.into()) };
-        match result {
-            0 => Ok(()),
-            -1 => unreachable!("unknown interface from ftdi.h"),
-            -2 => unreachable!("missing context"),
-            -3 => unreachable!("device already opened in Builder"),
-            _ => Err(Error::unknown(self.context)),
-        }
-    }
-
-    pub fn usb_open(self, vendor: u16, product: u16) -> Result<Device> {
-        let result = unsafe { ffi::ftdi_usb_open(self.context, vendor as i32, product as i32) };
-        match result {
-            0 => Ok(Device {
-                context: self.context,
-            }),
-            -1 => Err(Error::EnumerationFailed), // usb_find_busses() failed
-            -2 => Err(Error::EnumerationFailed), // usb_find_devices() failed
-            -3 => Err(Error::DeviceNotFound),    // usb device not found
-            -4 => Err(Error::AccessFailed),      // unable to open device
-            -5 => Err(Error::ClaimFailed),       // unable to claim device
-            -6 => Err(Error::RequestFailed),     // reset failed
-            -7 => Err(Error::RequestFailed),     // set baudrate failed
-            -8 => Err(Error::EnumerationFailed), // get product description failed
-            -9 => Err(Error::EnumerationFailed), // get serial number failed
-            -10 => Err(Error::unknown(self.context)), // unable to close device
-            -11 => unreachable!("uninitialized context"), // ftdi context invalid
-            -12 => Err(Error::EnumerationFailed), // libusb_get_device_list() failed
-            _ => Err(Error::unknown(self.context)),
-        }
-    }
-}
-
-impl Drop for Builder {
-    fn drop(&mut self) {
-        unsafe { ffi::ftdi_free(self.context) }
-    }
-}
 
 pub struct Device {
     context: *mut ffi::ftdi_context,
