@@ -37,12 +37,15 @@ pub struct Builder {
 }
 
 impl Builder {
-    pub fn new() -> Self {
+    pub fn new() -> Result<Self> {
         let context = unsafe { ffi::ftdi_new() };
-        // Can be null on either OOM or libusb_init failure
-        assert!(!context.is_null());
 
-        Self { context }
+        // Can be non-zero on either OOM or libusb_init failure
+        if context.is_null() {
+            Err(Error::InitFailed)
+        } else {
+            Ok(Self { context })
+        }
     }
 
     pub fn set_interface(&mut self, interface: Interface) -> Result<()> {
