@@ -6,6 +6,7 @@ use libftdi1_sys as ffi;
 
 use std::convert::TryInto;
 use std::io::{self, Read, Write};
+use std::os::raw;
 
 pub mod error;
 
@@ -18,6 +19,24 @@ pub enum Interface {
     C,
     D,
     Any,
+}
+
+pub enum FlowControl {
+    Disable,
+    RtsCts,
+    DtrDsr,
+    XonXoff
+}
+
+impl Into<i32> for FlowControl {
+    fn into(self) -> i32 {
+        match self {
+            FlowControl::Disable => 0x0,
+            FlowControl::RtsCts => (0x1 << 8),
+            FlowControl::DtrDsr => (0x2 << 8),
+            FlowControl::XonXoff => (0x4 << 8),
+        }
+    }
 }
 
 impl Into<ffi::ftdi_interface> for Interface {
@@ -100,6 +119,26 @@ impl Device {
         }
     }
 
+    pub fn usb_close(mut self) -> Result<Builder> {
+        let result = unsafe { ffi::ftdi_usb_close(self.context) };
+
+        match result {
+            0 => {
+                let context = std::mem::replace(&mut self.context, std::ptr::null_mut());
+                std::mem::forget(self);
+
+                let builder = Builder {
+                    context
+                };
+
+                Ok(builder)
+            },
+            -1 => Err(Error::AccessFailed), // usb release failed
+            -3 => unreachable!("uninitialized context"),
+            _ => Err(Error::unknown(self.context))
+        }
+    }
+
     pub fn usb_purge_buffers(&mut self) -> Result<()> {
         let result = unsafe { ffi::ftdi_usb_purge_buffers(self.context) };
         match result {
@@ -167,6 +206,45 @@ impl Device {
             0 => value,
             -1 => unreachable!("uninitialized context"),
             err => panic!("unknown get_write_chunksize retval {:?}", err),
+        }
+    }
+
+    pub fn read_pins(&mut self) -> Result<u8> {
+        let mut pins : u8 = 0;
+        let pins_ptr = std::slice::from_mut(&mut pins).as_mut_ptr();
+
+        let result = unsafe { ffi::ftdi_read_pins(self.context, pins_ptr) };
+
+        match result {
+            0 => Ok(pins),
+            -1 => Err(Error::RequestFailed), // read pins failed
+            -2 => unreachable!("uninitialized context"),
+            _ => Err(Error::unknown(self.context)),
+        }
+    }
+
+    pub fn set_baudrate(&mut self, baudrate : u32) -> Result<()> {
+        // TODO: libftdi1 will multiply baud rates in bitbang mode
+        // by 4. This leads to UB if baudrate >= INT_MAX/4.
+        let result = unsafe { ffi::ftdi_set_baudrate(self.context, baudrate as raw::c_int) };
+
+        match result {
+            0 => Ok(()),
+            -1 => Err(Error::InvalidInput("baud rate not supported")),
+            -2 => Err(Error::RequestFailed), // set baudrate failed
+            -3 => unreachable!("uninitialized context"),
+            _ => Err(Error::unknown(self.context))
+        }
+    }
+
+    pub fn set_flow_control(&mut self, flowctrl: FlowControl) -> Result<()> {
+        let result = unsafe { ffi::ftdi_setflowctrl(self.context, flowctrl.into()) };
+
+        match result {
+            0 => Ok(()),
+            -1 => Err(Error::RequestFailed), // set flow control failed
+            -2 => unreachable!("uninitialized context"),
+            _ => Err(Error::unknown(self.context))
         }
     }
 }
