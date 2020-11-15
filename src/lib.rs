@@ -35,7 +35,7 @@ impl Into<ffi::ftdi_interface> for Interface {
 
 
 pub struct Context {
-    native: ffi::ftdi_context,
+    pub native: ffi::ftdi_context,
 }
 
 impl Context {
