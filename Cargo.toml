@@ -18,5 +18,5 @@ categories = ["api-bindings", "hardware-support"]
 libusb1-sys = ["libftdi1-sys/libusb1-sys"]
 
 [dependencies]
-libftdi1-sys = "1.0.0-alpha3"
+libftdi1-sys = "1.0"
 thiserror = "1.0.15"
