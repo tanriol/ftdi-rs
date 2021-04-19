@@ -186,6 +186,6 @@ impl Target for LibusbDevice {
 }
 
 #[cfg(feature = "libusb1-sys")]
-pub fn find_by_libusb_device(device: *mut libusb_device) -> Opener<LibusbDevice> {
+pub unsafe fn find_by_raw_libusb_device(device: *mut libusb_device) -> Opener<LibusbDevice> {
     Opener::new(LibusbDevice { device })
 }
