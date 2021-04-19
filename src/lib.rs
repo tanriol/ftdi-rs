@@ -11,9 +11,9 @@ pub mod error;
 mod opener;
 
 pub use error::{Error, Result};
-pub use opener::{Opener, find_by_vid_pid, find_by_bus_address};
 #[cfg(feature = "libusb1-sys")]
 pub use opener::find_by_libusb_device;
+pub use opener::{find_by_bus_address, find_by_vid_pid, Opener};
 
 /// The target interface
 pub enum Interface {
@@ -35,7 +35,6 @@ impl Into<ffi::ftdi_interface> for Interface {
         }
     }
 }
-
 
 pub struct Device {
     context: *mut ffi::ftdi_context,
@@ -132,7 +131,9 @@ impl Drop for Device {
             -3 => unreachable!("uninitialized context"),
             _ => panic!("undocumented ftdi_usb_close return value"),
         };
-        unsafe { ffi::ftdi_free(self.context); }
+        unsafe {
+            ffi::ftdi_free(self.context);
+        }
     }
 }
 
