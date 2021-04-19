@@ -2,11 +2,9 @@ use std::ffi::CString;
 
 use super::{ffi, Device, Error, Interface, Result};
 
-
 pub trait Target {
     fn open_in_context(self, context: *mut ffi::ftdi_context) -> Result<()>;
 }
-
 
 pub struct BusAddress {
     bus: u8,
@@ -35,7 +33,6 @@ impl Target for BusAddress {
     }
 }
 
-
 pub struct UsbProperties {
     vid: u16,
     pid: u16,
@@ -46,7 +43,10 @@ pub struct UsbProperties {
 
 impl Target for UsbProperties {
     fn open_in_context(self, context: *mut ffi::ftdi_context) -> Result<()> {
-        let description = self.description.map(|s| s.as_ptr()).unwrap_or(std::ptr::null());
+        let description = self
+            .description
+            .map(|s| s.as_ptr())
+            .unwrap_or(std::ptr::null());
         let serial = self.serial.map(|s| s.as_ptr()).unwrap_or(std::ptr::null());
         let index = self.index.unwrap_or(0).into();
         let result = unsafe {
@@ -77,7 +77,6 @@ impl Target for UsbProperties {
         }
     }
 }
-
 
 pub struct Opener<T: Target> {
     target: T,
@@ -125,7 +124,8 @@ impl<T: Target> Opener<T> {
 impl Opener<UsbProperties> {
     pub fn description(mut self, description: &str) -> Self {
         assert!(self.target.description.is_none(), "description already set");
-        self.target.description = Some(CString::new(description).expect("serial should not contain NUL"));
+        self.target.description =
+            Some(CString::new(description).expect("serial should not contain NUL"));
         self
     }
 
@@ -143,17 +143,18 @@ impl Opener<UsbProperties> {
 }
 
 pub fn find_by_vid_pid(vid: u16, pid: u16) -> Opener<UsbProperties> {
-    Opener::new(
-        UsbProperties { vid, pid, description: None, serial: None, index: None }
-    )
+    Opener::new(UsbProperties {
+        vid,
+        pid,
+        description: None,
+        serial: None,
+        index: None,
+    })
 }
 
 pub fn find_by_bus_address(bus: u8, address: u8) -> Opener<BusAddress> {
-    Opener::new(
-        BusAddress { bus, address }
-    )
+    Opener::new(BusAddress { bus, address })
 }
-
 
 #[cfg(feature = "libusb1-sys")]
 use ffi::libusb1_sys::libusb_device;
@@ -169,16 +170,16 @@ impl Target for LibusbDevice {
         let result = unsafe { ffi::ftdi_usb_open_dev(context, self.device) };
         match result {
             0 => Ok(()),
-            -3 => Err(Error::AccessFailed),      // unable to config device
-            -4 => Err(Error::AccessFailed),      // unable to open device
-            -5 => Err(Error::ClaimFailed),       // unable to claim device
-            -6 => Err(Error::RequestFailed),     // reset failed
-            -7 => Err(Error::RequestFailed),     // set baudrate failed
+            -3 => Err(Error::AccessFailed), // unable to config device
+            -4 => Err(Error::AccessFailed), // unable to open device
+            -5 => Err(Error::ClaimFailed),  // unable to claim device
+            -6 => Err(Error::RequestFailed), // reset failed
+            -7 => Err(Error::RequestFailed), // set baudrate failed
             -8 => unreachable!("uninitialized context"), // ftdi context invalid
-            -9 => Err(Error::AccessFailed),      // libusb_get_device_descriptor() failed
-            -10 => Err(Error::AccessFailed),     // libusb_get_config_descriptor() failed
-            -11 => Err(Error::AccessFailed),     // libusb_detach_kernel_driver() failed
-            -12 => Err(Error::AccessFailed),     // libusb_get_configuration() failed
+            -9 => Err(Error::AccessFailed), // libusb_get_device_descriptor() failed
+            -10 => Err(Error::AccessFailed), // libusb_get_config_descriptor() failed
+            -11 => Err(Error::AccessFailed), // libusb_detach_kernel_driver() failed
+            -12 => Err(Error::AccessFailed), // libusb_get_configuration() failed
             _ => Err(Error::unknown(context)),
         }
     }
@@ -186,7 +187,5 @@ impl Target for LibusbDevice {
 
 #[cfg(feature = "libusb1-sys")]
 pub fn find_by_libusb_device(device: *mut libusb_device) -> Opener<LibusbDevice> {
-    Opener::new(
-        LibusbDevice { device }
-    )
+    Opener::new(LibusbDevice { device })
 }
