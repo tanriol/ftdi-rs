@@ -1,6 +1,6 @@
 [package]
 name = "ftdi"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Denis Lisov <dennis.lissov@gmail.com>"]
 edition = "2018"
 
@@ -16,6 +16,7 @@ categories = ["api-bindings", "hardware-support"]
 
 [features]
 libusb1-sys = ["libftdi1-sys/libusb1-sys"]
+vendored = ["libftdi1-sys/vendored"]
 
 [dependencies]
 libftdi1-sys = "1.0"
