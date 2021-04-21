@@ -42,6 +42,18 @@ pub struct Device {
 }
 
 impl Device {
+    pub fn set_baud_rate(&mut self, rate: u32) -> Result<()> {
+        let rate = rate.try_into().expect("baud rate should fit in an i32");
+        let result = unsafe { ffi::ftdi_set_baudrate(self.context, rate) };
+        match result {
+            0 => Ok(()),
+            -1 => Err(Error::InvalidInput("unsupported baudrate")),
+            -2 => Err(Error::RequestFailed),
+            -3 => unreachable!("uninitialized context"),
+            _ => Err(Error::unknown(self.context)),
+        }
+    }
+
     pub fn usb_reset(&mut self) -> Result<()> {
         let result = unsafe { ffi::ftdi_usb_reset(self.context) };
         match result {
