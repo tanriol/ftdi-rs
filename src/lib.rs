@@ -37,6 +37,59 @@ impl Into<ffi::ftdi_interface> for Interface {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Parity {
+    None,
+    Odd,
+    Even,
+    Mark,
+    Space,
+}
+
+impl Into<ffi::ftdi_parity_type> for Parity {
+    fn into(self) -> ffi::ftdi_parity_type {
+        match self {
+            Parity::None => ffi::ftdi_parity_type::NONE,
+            Parity::Odd => ffi::ftdi_parity_type::ODD,
+            Parity::Even => ffi::ftdi_parity_type::EVEN,
+            Parity::Mark => ffi::ftdi_parity_type::MARK,
+            Parity::Space => ffi::ftdi_parity_type::SPACE,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Bits {
+    Seven,
+    Eight,
+}
+
+impl Into<ffi::ftdi_bits_type> for Bits {
+    fn into(self) -> ffi::ftdi_bits_type {
+        match self {
+            Bits::Seven => ffi::ftdi_bits_type::BITS_7,
+            Bits::Eight => ffi::ftdi_bits_type::BITS_8,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum StopBits {
+    One,
+    OneHalf,
+    Two,
+}
+
+impl Into<ffi::ftdi_stopbits_type> for StopBits {
+    fn into(self) -> ffi::ftdi_stopbits_type {
+        match self {
+            StopBits::One => ffi::ftdi_stopbits_type::STOP_BIT_1,
+            StopBits::OneHalf => ffi::ftdi_stopbits_type::STOP_BIT_15,
+            StopBits::Two => ffi::ftdi_stopbits_type::STOP_BIT_2,
+        }
+    }
+}
+
 pub struct Device {
     context: *mut ffi::ftdi_context,
 }
@@ -50,6 +103,16 @@ impl Device {
             -1 => Err(Error::InvalidInput("unsupported baudrate")),
             -2 => Err(Error::RequestFailed),
             -3 => unreachable!("uninitialized context"),
+            _ => Err(Error::unknown(self.context)),
+        }
+    }
+
+    pub fn configure(&mut self, bits: Bits, stop_bits: StopBits, parity: Parity) -> Result<()> {
+        let result = unsafe { ffi::ftdi_set_line_property(self.context, bits.into(), stop_bits.into(), parity.into()) };
+        match result {
+            0 => Ok(()),
+            -1 => Err(Error::RequestFailed),
+            -2 => unreachable!("uninitialized context"),
             _ => Err(Error::unknown(self.context)),
         }
     }
