@@ -15,6 +15,11 @@ pub use error::{Error, Result};
 pub use opener::find_by_raw_libusb_device;
 pub use opener::{find_by_bus_address, find_by_vid_pid, Opener};
 
+pub mod mode;
+use mode::{BitBang};
+
+pub mod bitbang;
+
 /// The target interface
 pub enum Interface {
     A,
@@ -119,6 +124,10 @@ impl Device {
             -1 => unreachable!("uninitialized context"),
             err => panic!("unknown get_write_chunksize retval {:?}", err),
         }
+    }
+
+    pub fn bitbang(self, bitmask: u8) -> Result<bitbang::BitBang> {
+        BitBang::new(self, bitmask)
     }
 }
 
