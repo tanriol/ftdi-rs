@@ -16,6 +16,7 @@ pub use opener::find_by_raw_libusb_device;
 pub use opener::{find_by_bus_address, find_by_vid_pid, Opener};
 
 /// The target interface
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Interface {
     A,
     B,
