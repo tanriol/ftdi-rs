@@ -90,6 +90,25 @@ impl Into<ffi::ftdi_stopbits_type> for StopBits {
     }
 }
 
+#[allow(non_camel_case_types)]
+pub enum FlowControl {
+    Disabled,
+    RtsCts,
+    DtrDsr,
+    XonXoff,
+}
+
+impl Into<i32> for FlowControl {
+    fn into(self) -> i32 {
+        match self {
+            FlowControl::Disabled => 0x0,
+            FlowControl::RtsCts => (0x1 << 8),
+            FlowControl::DtrDsr => (0x2 << 8),
+            FlowControl::XonXoff => (0x4 << 8),
+        }
+    }
+}
+
 pub struct Device {
     context: *mut ffi::ftdi_context,
 }
@@ -194,6 +213,16 @@ impl Device {
             0 => value,
             -1 => unreachable!("uninitialized context"),
             err => panic!("unknown get_write_chunksize retval {:?}", err),
+        }
+    }
+
+    pub fn set_flow_control(&mut self, flowctrl: FlowControl) -> Result<()> {
+        let result = unsafe { ffi::ftdi_setflowctrl(self.context, flowctrl.into()) };
+        match result {
+            0 => Ok(()),
+            -1 => Err(Error::RequestFailed),
+            -2 => Err(Error::DeviceNotFound),
+            _ => Err(Error::unknown(self.context)),
         }
     }
 }
