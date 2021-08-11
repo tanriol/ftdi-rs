@@ -109,6 +109,36 @@ impl Into<i32> for FlowControl {
     }
 }
 
+pub enum BitMode {
+    Reset,
+    Bitbang,
+    Mpsse,
+    SyncBB,
+    Mcu,
+    Opto,
+    CBus,
+    Syncff,
+    Ft1284,
+}
+
+impl Into<u8> for BitMode {
+    fn into(self) -> u8 {
+        let mode = match self {
+            BitMode::Reset => ffi::ftdi_mpsse_mode::BITMODE_RESET,
+            BitMode::Bitbang => ffi::ftdi_mpsse_mode::BITMODE_BITBANG,
+            BitMode::Mpsse => ffi::ftdi_mpsse_mode::BITMODE_MPSSE,
+            BitMode::SyncBB => ffi::ftdi_mpsse_mode::BITMODE_SYNCBB,
+            BitMode::Mcu => ffi::ftdi_mpsse_mode::BITMODE_MCU,
+            BitMode::Opto => ffi::ftdi_mpsse_mode::BITMODE_OPTO,
+            BitMode::CBus => ffi::ftdi_mpsse_mode::BITMODE_CBUS,
+            BitMode::Syncff => ffi::ftdi_mpsse_mode::BITMODE_SYNCFF,
+            BitMode::Ft1284 => ffi::ftdi_mpsse_mode::BITMODE_FT1284,
+        };
+
+        mode.0 as u8
+    }
+}
+
 pub struct Device {
     context: *mut ffi::ftdi_context,
 }
@@ -218,6 +248,16 @@ impl Device {
 
     pub fn set_flow_control(&mut self, flowctrl: FlowControl) -> Result<()> {
         let result = unsafe { ffi::ftdi_setflowctrl(self.context, flowctrl.into()) };
+        match result {
+            0 => Ok(()),
+            -1 => Err(Error::RequestFailed),
+            -2 => Err(Error::DeviceNotFound),
+            _ => Err(Error::unknown(self.context)),
+        }
+    }
+
+    pub fn set_bitmode(&mut self, bitmask: u8, mode: BitMode) -> Result<()> {
+        let result = unsafe { ffi::ftdi_set_bitmode(self.context, bitmask, mode.into()) };
         match result {
             0 => Ok(()),
             -1 => Err(Error::RequestFailed),
