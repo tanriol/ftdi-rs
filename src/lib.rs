@@ -109,6 +109,7 @@ impl FlowControl {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum BitMode {
     Reset,
     Bitbang,
@@ -121,9 +122,9 @@ pub enum BitMode {
     Ft1284,
 }
 
-impl Into<u8> for BitMode {
-    fn into(self) -> u8 {
-        let mode = match self {
+impl BitMode {
+    pub fn to_ffi(self) -> ffi::ftdi_mpsse_mode {
+        match self {
             BitMode::Reset => ffi::ftdi_mpsse_mode::BITMODE_RESET,
             BitMode::Bitbang => ffi::ftdi_mpsse_mode::BITMODE_BITBANG,
             BitMode::Mpsse => ffi::ftdi_mpsse_mode::BITMODE_MPSSE,
@@ -133,9 +134,7 @@ impl Into<u8> for BitMode {
             BitMode::CBus => ffi::ftdi_mpsse_mode::BITMODE_CBUS,
             BitMode::Syncff => ffi::ftdi_mpsse_mode::BITMODE_SYNCFF,
             BitMode::Ft1284 => ffi::ftdi_mpsse_mode::BITMODE_FT1284,
-        };
-
-        mode.0 as u8
+        }
     }
 }
 
@@ -259,7 +258,8 @@ impl Device {
     }
 
     pub fn set_bitmode(&mut self, bitmask: u8, mode: BitMode) -> Result<()> {
-        let result = unsafe { ffi::ftdi_set_bitmode(self.context, bitmask, mode.into()) };
+        let mode = mode.to_ffi().0.try_into().unwrap();
+        let result = unsafe { ffi::ftdi_set_bitmode(self.context, bitmask, mode) };
         match result {
             0 => Ok(()),
             -1 => Err(Error::RequestFailed),
