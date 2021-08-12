@@ -252,7 +252,7 @@ impl Device {
         match result {
             0 => Ok(()),
             -1 => Err(Error::RequestFailed),
-            -2 => Err(Error::DeviceNotFound),
+            -2 => unreachable!("uninitialized context"),
             _ => Err(Error::unknown(self.context)),
         }
     }
@@ -263,7 +263,7 @@ impl Device {
         match result {
             0 => Ok(()),
             -1 => Err(Error::RequestFailed),
-            -2 => Err(Error::DeviceNotFound),
+            -2 => unreachable!("uninitialized context"),
             _ => Err(Error::unknown(self.context)),
         }
     }
