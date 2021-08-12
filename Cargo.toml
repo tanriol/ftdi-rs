@@ -1,6 +1,6 @@
 [package]
 name = "ftdi"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Denis Lisov <dennis.lissov@gmail.com>"]
 edition = "2018"
 
