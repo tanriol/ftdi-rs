@@ -90,7 +90,7 @@ impl Into<ffi::ftdi_stopbits_type> for StopBits {
     }
 }
 
-#[allow(non_camel_case_types)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum FlowControl {
     Disabled,
     RtsCts,
@@ -98,13 +98,13 @@ pub enum FlowControl {
     XonXoff,
 }
 
-impl Into<i32> for FlowControl {
-    fn into(self) -> i32 {
+impl FlowControl {
+    pub fn to_ffi(self) -> i32 {
         match self {
-            FlowControl::Disabled => 0x0,
-            FlowControl::RtsCts => (0x1 << 8),
-            FlowControl::DtrDsr => (0x2 << 8),
-            FlowControl::XonXoff => (0x4 << 8),
+            FlowControl::Disabled => ffi::SIO_XON_XOFF_HS,
+            FlowControl::RtsCts => ffi::SIO_RTS_CTS_HS,
+            FlowControl::DtrDsr => ffi::SIO_DTR_DSR_HS,
+            FlowControl::XonXoff => ffi::SIO_XON_XOFF_HS,
         }
     }
 }
@@ -249,7 +249,7 @@ impl Device {
     }
 
     pub fn set_flow_control(&mut self, flowctrl: FlowControl) -> Result<()> {
-        let result = unsafe { ffi::ftdi_setflowctrl(self.context, flowctrl.into()) };
+        let result = unsafe { ffi::ftdi_setflowctrl(self.context, flowctrl.to_ffi()) };
         match result {
             0 => Ok(()),
             -1 => Err(Error::RequestFailed),

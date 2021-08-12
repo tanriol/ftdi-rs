@@ -19,5 +19,5 @@ libusb1-sys = ["libftdi1-sys/libusb1-sys"]
 vendored = ["libftdi1-sys/vendored"]
 
 [dependencies]
-libftdi1-sys = "1.0"
+libftdi1-sys = "1.1"
 thiserror = "1.0.15"
