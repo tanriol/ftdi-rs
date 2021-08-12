@@ -257,9 +257,9 @@ impl Device {
         }
     }
 
-    pub fn set_bitmode(&mut self, bitmask: u8, mode: BitMode) -> Result<()> {
+    pub fn set_bitmode(&mut self, output_mask: u8, mode: BitMode) -> Result<()> {
         let mode = mode.to_ffi().0.try_into().unwrap();
-        let result = unsafe { ffi::ftdi_set_bitmode(self.context, bitmask, mode) };
+        let result = unsafe { ffi::ftdi_set_bitmode(self.context, output_mask, mode) };
         match result {
             0 => Ok(()),
             -1 => Err(Error::RequestFailed),
