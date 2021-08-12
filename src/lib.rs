@@ -157,7 +157,9 @@ impl Device {
     }
 
     pub fn configure(&mut self, bits: Bits, stop_bits: StopBits, parity: Parity) -> Result<()> {
-        let result = unsafe { ffi::ftdi_set_line_property(self.context, bits.into(), stop_bits.into(), parity.into()) };
+        let result = unsafe {
+            ffi::ftdi_set_line_property(self.context, bits.into(), stop_bits.into(), parity.into())
+        };
         match result {
             0 => Ok(()),
             -1 => Err(Error::RequestFailed),
