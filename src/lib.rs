@@ -2,8 +2,13 @@
 //!
 //! Note: the library interface is *definitely* unstable for now
 
+use ftdi_mpsse::MpsseCmdBuilder;
+use ftdi_mpsse::MpsseCmdExecutor;
+use ftdi_mpsse::MpsseSettings;
+
 use libftdi1_sys as ffi;
 
+use std::convert::TryFrom;
 use std::convert::TryInto;
 use std::io::{self, Read, Write};
 
@@ -15,6 +20,7 @@ pub use error::{Error, Result};
 pub use opener::find_by_raw_libusb_device;
 pub use opener::{find_by_bus_address, find_by_vid_pid, Opener};
 
+use error::libftdi_to_io;
 use error::libusb_to_io;
 
 /// The target interface
@@ -355,5 +361,100 @@ impl Write for Device {
 
     fn flush(&mut self) -> io::Result<()> {
         Ok(())
+    }
+}
+
+impl Device {
+    pub fn set_mpsse_clock(&mut self, freq: u32) -> std::result::Result<(), io::Error> {
+        const MAX: u32 = 30_000_000;
+        const MIN: u32 = 92;
+
+        assert!(
+            freq >= MIN,
+            "frequency of {} exceeds minimum of {}",
+            freq,
+            MIN
+        );
+        assert!(
+            freq <= MAX,
+            "frequency of {} exceeds maximum of {}",
+            freq,
+            MAX
+        );
+
+        let (divisor, clkdiv) = if freq <= 6_000_000 {
+            (6_000_000 / freq - 1, Some(true))
+        } else {
+            (30_000_000 / freq - 1, Some(false))
+        };
+
+        self.write_all(MpsseCmdBuilder::new().set_clock(divisor, clkdiv).as_slice())?;
+
+        Ok(())
+    }
+}
+
+impl MpsseCmdExecutor for Device {
+    type Error = io::Error;
+
+    /// Initialize the MPSSE controller.
+    ///
+    /// According to AN135 [FTDI MPSSE basics], this method does the following:
+    /// 1. Optionally resets the peripheral side of FTDI port.
+    /// 2. Configures the maximum USB transfer sizes.
+    /// 3. Disables any event or error special characters.
+    /// 4. Configures the read and write timeouts (not yet implemented).
+    /// 5. Configures the latency timer to wait before sending an incomplete USB packet
+    ///    from the peripheral back to the host.
+    /// 6. Configures for RTS/CTS flow control to ensure that the driver will not issue
+    ///    IN requests if the buffer is unable to accept data.
+    /// 7. Resets and then enables the MPSSE controller
+    /// 8. Optionally configures the MPSSE clock frequency.
+    ///
+    /// [FTDI MPSSE Basics]: https://www.ftdichip.com/Support/Documents/AppNotes/AN_135_MPSSE_Basics.pdf
+    fn init(&mut self, settings: &MpsseSettings) -> std::result::Result<(), io::Error> {
+        let millis = u8::try_from(settings.latency_timer.as_millis())
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+
+        if settings.reset {
+            self.usb_reset().map_err(libftdi_to_io)?;
+        }
+
+        self.usb_purge_buffers().map_err(libftdi_to_io)?;
+        self.set_write_chunksize(settings.in_transfer_size);
+        self.set_read_chunksize(settings.in_transfer_size);
+        self.set_latency_timer(millis).map_err(libftdi_to_io)?;
+        self.usb_set_event_char(None).map_err(libftdi_to_io)?;
+        self.usb_set_error_char(None).map_err(libftdi_to_io)?;
+        self.set_flow_control(FlowControl::RtsCts)
+            .map_err(libftdi_to_io)?;
+        self.set_bitmode(0, BitMode::Reset).map_err(libftdi_to_io)?;
+        self.set_bitmode(settings.mask, BitMode::Mpsse)
+            .map_err(libftdi_to_io)?;
+
+        if let Some(frequency) = settings.clock_frequency {
+            self.set_mpsse_clock(frequency)?;
+        }
+
+        Ok(())
+    }
+
+    /// Write the MPSSE command to the device.
+    ///
+    /// Workaround: perform Tx flush before sending data.
+    /// Otherwise several first readings from FTDI chip in the exchange sequence may be broken.
+    /// E.g. reading during the first exchange returns nothing, but reading during the second
+    /// exchange returns both the first and second replies. So far it is not clear how to get
+    /// rid of this workaround. Note that such a workaround is not needed when FTDI proprietary
+    /// libftd2xx library is used.
+    fn send(&mut self, data: &[u8]) -> std::result::Result<(), io::Error> {
+        self.usb_purge_tx_buffer()
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        self.write_all(data)
+    }
+
+    /// Read the MPSSE response from the device.
+    fn recv(&mut self, data: &mut [u8]) -> std::result::Result<(), io::Error> {
+        self.read_exact(data)
     }
 }

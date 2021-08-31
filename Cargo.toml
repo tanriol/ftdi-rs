@@ -21,3 +21,4 @@ vendored = ["libftdi1-sys/vendored"]
 [dependencies]
 libftdi1-sys = "1.1"
 thiserror = "1.0.15"
+ftdi-mpsse = "0.1.0"
