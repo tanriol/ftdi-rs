@@ -197,6 +197,36 @@ impl Device {
         }
     }
 
+    pub fn usb_set_event_char(&mut self, value: Option<u8>) -> Result<()> {
+        let result = if let Some(v) = value {
+            unsafe { ffi::ftdi_set_event_char(self.context, v, 1) }
+        } else {
+            unsafe { ffi::ftdi_set_event_char(self.context, 0, 0) }
+        };
+
+        match result {
+            0 => Ok(()),
+            -1 => Err(Error::RequestFailed),
+            -2 => unreachable!("uninitialized context"),
+            _ => Err(Error::unknown(self.context)),
+        }
+    }
+
+    pub fn usb_set_error_char(&mut self, value: Option<u8>) -> Result<()> {
+        let result = if let Some(v) = value {
+            unsafe { ffi::ftdi_set_error_char(self.context, v, 1) }
+        } else {
+            unsafe { ffi::ftdi_set_error_char(self.context, 0, 0) }
+        };
+
+        match result {
+            0 => Ok(()),
+            -1 => Err(Error::RequestFailed),
+            -2 => unreachable!("uninitialized context"),
+            _ => Err(Error::unknown(self.context)),
+        }
+    }
+
     pub fn set_latency_timer(&mut self, value: u8) -> Result<()> {
         let result = unsafe { ffi::ftdi_set_latency_timer(self.context, value) };
         match result {
