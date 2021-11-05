@@ -267,6 +267,10 @@ impl Device {
             _ => Err(Error::unknown(self.context)),
         }
     }
+
+    pub fn libftdi_context(&mut self) -> *mut ffi::ftdi_context {
+        self.context
+    }
 }
 
 impl Drop for Device {
