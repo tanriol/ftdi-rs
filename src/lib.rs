@@ -319,6 +319,25 @@ impl Device {
     pub fn libftdi_context(&mut self) -> *mut ffi::ftdi_context {
         self.context
     }
+
+    pub fn readbuffer_remaining(&self) -> usize {
+        unsafe { (*self.context).readbuffer_remaining }
+            .try_into()
+            .expect("should be nonnegative")
+    }
+
+    pub fn read_packet(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        if self.readbuffer_remaining() > 0 {
+            let size = std::cmp::min(buf.len(), self.readbuffer_remaining());
+            self.read(&mut buf[..size])
+        } else {
+            if self.read(&mut buf[0..1])? == 0 {
+                return Ok(0);
+            }
+            let size = std::cmp::min(buf.len(), self.readbuffer_remaining() + 1);
+            self.read(&mut buf[1..size]).map(|len| len + 1)
+        }
+    }
 }
 
 impl Drop for Device {
