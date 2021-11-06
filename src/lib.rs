@@ -15,6 +15,8 @@ pub use error::{Error, Result};
 pub use opener::find_by_raw_libusb_device;
 pub use opener::{find_by_bus_address, find_by_vid_pid, Opener};
 
+use error::libusb_to_io;
+
 /// The target interface
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Interface {
@@ -335,7 +337,7 @@ impl Read for Device {
         match result {
             count if count >= 0 => Ok(count as usize),
             -666 => unreachable!("uninitialized context"),
-            err => Err(error::libusb_to_io(err)),
+            err => Err(libusb_to_io(err)),
         }
     }
 }
@@ -347,7 +349,7 @@ impl Write for Device {
         match result {
             count if count >= 0 => Ok(count as usize),
             -666 => unreachable!("uninitialized context"),
-            err => Err(error::libusb_to_io(err)),
+            err => Err(libusb_to_io(err)),
         }
     }
 

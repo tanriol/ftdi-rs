@@ -57,3 +57,7 @@ pub struct LibFtdiError {
 pub(crate) fn libusb_to_io(code: i32) -> io::Error {
     io::Error::new(io::ErrorKind::Other, format!("libusb error code {}", code))
 }
+
+pub(crate) fn libftdi_to_io(err: Error) -> io::Error {
+    io::Error::new(io::ErrorKind::Other, err)
+}
