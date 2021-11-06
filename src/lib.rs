@@ -477,3 +477,58 @@ impl MpsseCmdExecutor for Device {
         self.read_exact(data)
     }
 }
+
+pub struct AsyncWrite {
+    data: Vec<u8>,
+    control: *mut ffi::ftdi_transfer_control,
+}
+
+impl AsyncWrite {
+    pub fn is_cancelled(&self) -> bool {
+        let status = self.completed();
+        status != 0 && status != 1
+    }
+
+    pub fn is_in_progress(&self) -> bool {
+        self.completed() == 0
+    }
+
+    fn completed(&self) -> i32 {
+        unsafe { (*self.control).completed }
+    }
+
+    pub fn wait(mut self) -> io::Result<usize> {
+        let result = unsafe { ffi::ftdi_transfer_data_done(self.control) };
+        self.data = vec![];
+        std::mem::forget(self);
+        match result {
+            count if count >= 0 => Ok(count as usize),
+            err => Err(error::libusb_to_io(err)),
+        }
+    }
+}
+
+impl Drop for AsyncWrite {
+    fn drop(&mut self) {
+        unsafe {
+            ffi::ftdi_transfer_data_cancel(self.control, std::ptr::null_mut());
+        }
+        self.data.clear();
+    }
+}
+
+impl Device {
+    pub fn write_async(&mut self, buf: &[u8]) -> io::Result<AsyncWrite> {
+        let mut data = buf.to_owned();
+        let len = data.len().try_into().unwrap_or(std::i32::MAX);
+        let control = unsafe { ffi::ftdi_write_data_submit(self.context, data.as_mut_ptr(), len) };
+        if control.is_null() {
+            Err(io::Error::new(
+                io::ErrorKind::Other,
+                "unknown libftdi or libusb error",
+            ))
+        } else {
+            Ok(AsyncWrite { control, data })
+        }
+    }
+}
