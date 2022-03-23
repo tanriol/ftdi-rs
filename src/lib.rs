@@ -316,6 +316,18 @@ impl Device {
         }
     }
 
+    /// Reads the current pin state.
+    pub fn read_pins(&mut self) -> Result<u8> {
+        let mut value = 0;
+        let code = unsafe { libftdi1_sys::ftdi_read_pins(self.context, &mut value) };
+        match code {
+            0 => Ok(value),
+            -1 => Err(Error::RequestFailed),
+            -2 => unreachable!("uninitialized context"),
+            _ => Err(Error::unknown(self.context)),
+        }
+    }
+
     pub fn libftdi_context(&mut self) -> *mut ffi::ftdi_context {
         self.context
     }
