@@ -45,6 +45,34 @@ impl Into<ffi::ftdi_interface> for Interface {
     }
 }
 
+/// Whether any kernel module (on Linux: `ftdi_sio`) attached to the device should automatically be
+/// detached before connecting and/or reattached after closing the device.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum ModuleDetachMode {
+    /// Detach automatically, but do not reattach after closing.
+    ///
+    /// This is the default.
+    AutoDetach,
+
+    /// Do not detach or reattach automatically.
+    DontDetach,
+
+    /// Detach automatically and reattach after closing.
+    AutoDetachReattach,
+}
+
+impl Into<ffi::ftdi_module_detach_mode> for ModuleDetachMode {
+    fn into(self) -> ffi::ftdi_module_detach_mode {
+        match self {
+            ModuleDetachMode::AutoDetach => ffi::ftdi_module_detach_mode::AUTO_DETACH_SIO_MODULE,
+            ModuleDetachMode::DontDetach => ffi::ftdi_module_detach_mode::DONT_DETACH_SIO_MODULE,
+            ModuleDetachMode::AutoDetachReattach => {
+                ffi::ftdi_module_detach_mode::AUTO_DETACH_REATACH_SIO_MODULE
+            }
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Parity {
     None,

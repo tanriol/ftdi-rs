@@ -1,6 +1,6 @@
 use std::ffi::CString;
 
-use super::{ffi, Device, Error, Interface, Result};
+use super::{ffi, Device, Error, Interface, ModuleDetachMode, Result};
 
 pub trait Target {
     fn open_in_context(self, context: *mut ffi::ftdi_context) -> Result<()>;
@@ -81,6 +81,7 @@ impl Target for UsbProperties {
 pub struct Opener<T: Target> {
     target: T,
     interface: Option<Interface>,
+    module_detach_mode: ModuleDetachMode,
 }
 
 impl<T: Target> Opener<T> {
@@ -88,6 +89,7 @@ impl<T: Target> Opener<T> {
         Self {
             target,
             interface: None,
+            module_detach_mode: ModuleDetachMode::AutoDetach,
         }
     }
 
@@ -97,11 +99,20 @@ impl<T: Target> Opener<T> {
         self
     }
 
+    pub fn module_detach_mode(mut self, module_detach_mode: ModuleDetachMode) -> Self {
+        self.module_detach_mode = module_detach_mode;
+        self
+    }
+
     pub fn open(self) -> Result<Device> {
         let context = unsafe { ffi::ftdi_new() };
 
         if context.is_null() {
             return Err(Error::AllocationFailed);
+        }
+
+        unsafe {
+            (*context).module_detach_mode = self.module_detach_mode.into();
         }
 
         if let Some(interface) = self.interface {
